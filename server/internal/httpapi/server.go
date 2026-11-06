@@ -63,6 +63,7 @@ func (s *Server) enroll(w http.ResponseWriter, r *http.Request) {
 		BootstrapToken string `json:"bootstrap_token"`
 		DeviceName     string `json:"device_name"`
 		Fingerprint    string `json:"device_fingerprint"`
+		DeviceCredential string `json:"device_credential"`
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8*1024)
 	decoder := json.NewDecoder(r.Body)
@@ -80,11 +81,13 @@ func (s *Server) enroll(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_device_name"})
 		return
 	}
-	result, err := enrollDevice(r.Context(), s.db, name, request.Fingerprint)
+	result, err := enrollDevice(r.Context(), s.db, name, request.Fingerprint, request.DeviceCredential)
 	if err != nil {
 		switch {
 		case errors.Is(err, errInvalidFingerprint):
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_device_fingerprint"})
+		case errors.Is(err, errInvalidDeviceCredential):
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_device_credential"})
 		case errors.Is(err, errDeviceAlreadyRegistered):
 			writeJSON(w, http.StatusConflict, map[string]string{"error": "device_already_registered"})
 		case errors.Is(err, errAddressPoolExhausted):
