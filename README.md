@@ -2,7 +2,7 @@
 
 CSL VPN is a centrally managed Ethernet VPN project for Windows clients and remote sites.
 
-> Status: architecture and implementation planning. No production-ready VPN data plane is claimed yet.
+> Status: initial server and Windows client scaffolding is committed to `develop`. The VPN data planes and enrollment/session workflows are still under implementation; this is not yet a production-ready build.
 
 ## Initial architecture
 
@@ -34,6 +34,14 @@ Physical site networks may use overlapping address ranges. They must therefore r
 - `main`: stable, reviewed milestones.
 - `develop`: active integration branch.
 - Use focused commits for independently reviewable components.
+
+## Implementation layout
+
+- `server/`: Go control-plane service, PostgreSQL schema, container build.
+- `client/`: .NET 10 Windows service, tray shell, and shared client types.
+- `.github/workflows/build.yml`: Linux server and Windows client build jobs.
+
+See [implementation status](docs/IMPLEMENTATION-STATUS.md) for the current milestone and remaining work.
 
 ## Planned implementation areas
 
