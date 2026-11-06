@@ -8,7 +8,6 @@ public sealed class ManagementEnrollment(
     ILogger<ManagementEnrollment> logger)
 {
     public async Task<DeviceIdentity> EnsureEnrolledAsync(
-        Uri endpoint,
         string? bootstrapToken,
         CancellationToken cancellationToken)
     {
