@@ -73,7 +73,7 @@ func (s *Server) enroll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := strings.TrimSpace(request.DeviceName)
-	if name == "" || len(name) > 64 || strings.ContainsAny(name, "\\r\\n\\x00") {
+	if name == "" || len(name) > 64 || strings.ContainsAny(name, "\r\n\x00") {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_device_name"})
 		return
 	}
