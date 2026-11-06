@@ -24,11 +24,16 @@ jobs:
       - name: Test
         working-directory: server
         run: go test ./...
+      - name: Vet
+        working-directory: server
+        run: go vet ./...
       - name: Build Linux x64 server
         working-directory: server
         run: |
           mkdir -p dist
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/cslvpn-server ./cmd/cslvpn-server
+      - name: Build server container
+        run: docker build -t cslvpn-server:ci ./server
       - uses: actions/upload-artifact@v4
         with:
           name: cslvpn-server-linux-x64
