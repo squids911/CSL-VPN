@@ -30,6 +30,13 @@ func ExpireOfflineDevices(ctx context.Context, db *sql.DB) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("expire offline devices: %w", err)
 	}
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM vpn_enrollment_tokens
+		WHERE expires_at < now()
+		   OR consumed_at < now() - interval '30 days'
+	`); err != nil {
+		return 0, fmt.Errorf("clean expired enrollment tokens: %w", err)
+	}
 	count, err := result.RowsAffected()
 	if err != nil {
 		return 0, fmt.Errorf("count expired devices: %w", err)
