@@ -1,0 +1,41 @@
+name: build
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache-dependency-path: server/go.sum
+      - name: Resolve dependencies
+        working-directory: server
+        run: go mod tidy
+      - name: Test
+        working-directory: server
+        run: go test ./...
+      - name: Build
+        working-directory: server
+        run: go build -trimpath ./...
+
+  windows-client:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build service
+        run: dotnet build .\client\src\CSLVpn.Service\CSLVpn.Service.csproj -c Release
+      - name: Build tray
+        run: dotnet build .\client\src\CSLVpn.Tray\CSLVpn.Tray.csproj -c Release
