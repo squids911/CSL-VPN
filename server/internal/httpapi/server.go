@@ -33,6 +33,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /health/ready", s.ready)
 	s.mux.HandleFunc("GET /api/v1/version", s.version)
 	s.mux.HandleFunc("POST /api/v1/enroll", s.enroll)
+	s.mux.HandleFunc("POST /api/v1/sessions", s.startSession)
+	s.mux.HandleFunc("POST /api/v1/heartbeat", s.heartbeat)
 }
 
 func (s *Server) live(w http.ResponseWriter, _ *http.Request) {
