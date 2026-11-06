@@ -23,12 +23,12 @@ The client does not establish a VPN tunnel yet. SoftEther and WireGuard engine a
 
 ## First enrollment configuration
 
-Set machine-level environment variables before starting the service:
+Create a one-time enrollment code through the admin API for the device name, then set machine-level environment variables before starting the service:
 
 - `CSLVPN_SERVER_URL=https://v.csl.by/`
 - `CSLVPN_BOOTSTRAP_TOKEN=<operator-provisioned secret>`
 
-The bootstrap token is required only for the first enrollment. Do not bake it into the MSI or distribute it in a shared client package. The service runs under its Windows service account and protects the persistent identity with DPAPI.
+The bootstrap token is a single-use, expiring code bound to the device name and is required only for first enrollment. Do not bake it into the MSI or distribute it in a shared client package. The service runs under its Windows service account and protects the persistent identity with DPAPI.
 
 ## Build on Windows
 
