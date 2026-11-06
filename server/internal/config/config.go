@@ -6,8 +6,8 @@ import (
 )
 
 type Config struct {
-	ListenAddress string
-	DatabaseURL   string
+	ListenAddress   string
+	DatabaseURL     string
 	EnrollmentToken string
 }
 
