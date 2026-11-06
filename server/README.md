@@ -16,7 +16,7 @@ Go-based control plane for CSL VPN. This service is deliberately separate from t
 
 - `CSLVPN_LISTEN`: listen address (default `127.0.0.1:8088`).
 - `CSLVPN_DATABASE_URL`: PostgreSQL connection URL (required).
-- `CSLVPN_ENROLLMENT_TOKEN`: bootstrap secret, at least 32 characters (required).
+- `CSLVPN_ADMIN_TOKEN`: administrator API secret, at least 32 characters (required).
 
 Do not expose the service directly to the Internet. Put it behind a TLS-terminating reverse proxy and restrict access to management routes.
 
@@ -25,7 +25,7 @@ Do not expose the service directly to the Internet. Put it behind a TLS-terminat
 ```sh
 cd server
 go mod tidy
-CSLVPN_DATABASE_URL='postgres://cslvpn:change-me@127.0.0.1:5432/cslvpn?sslmode=disable' CSLVPN_ENROLLMENT_TOKEN='replace-with-a-random-secret-of-at-least-32-characters' go run ./cmd/cslvpn-server
+CSLVPN_DATABASE_URL='postgres://cslvpn:change-me@127.0.0.1:5432/cslvpn?sslmode=disable' CSLVPN_ADMIN_TOKEN='replace-with-a-random-secret-of-at-least-32-characters' go run ./cmd/cslvpn-server
 ```
 
 Apply migrations using the reviewed SQL files in `migrations/`.
@@ -36,8 +36,9 @@ Apply migrations using the reviewed SQL files in `migrations/`.
 - `GET /health/ready`
 - `GET /api/v1/version`
 - `GET /api/v1/device`: authenticated device profile and assigned VPN address
-- `POST /api/v1/enroll`: bootstrap-token enrollment; expects `device_name`, a 32-byte hex `device_fingerprint`, and a client-generated 32-byte hex `device_credential`.
+- `POST /api/v1/admin/enrollment-tokens`: admin Bearer token; creates a one-time enrollment code bound to a device name. The plaintext token is returned only once.
+- `POST /api/v1/enroll`: one-time-token enrollment; expects `bootstrap_token`, `device_name`, a 32-byte hex `device_fingerprint`, and a client-generated 32-byte hex `device_credential`.
 - `POST /api/v1/sessions`: device Bearer credential; expects `protocol` (`softether` or `wireguard`) and `transport` (`udp` or `tcp`). Returns a 90-second session token.
 - `POST /api/v1/heartbeat`: device Bearer credential plus `session_token` in JSON; renews the session lease.
 
-The API listens on loopback by default. Keep it behind a TLS reverse proxy and do not expose the service directly to the public Internet. Never embed the shared enrollment bootstrap secret in a distributable client installer; the current bootstrap flow is an operator-controlled development mechanism pending per-device one-time enrollment codes.
+The API listens on loopback by default. Keep it behind a TLS reverse proxy and do not expose the service directly to the public Internet. Enrollment codes are single-use, expire after the configured period, and are bound to the intended device name. Never embed an enrollment code or administrator token in a distributable client installer.
