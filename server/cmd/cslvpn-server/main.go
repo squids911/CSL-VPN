@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -14,6 +15,34 @@ import (
 	"github.com/squids911/CSL-VPN/server/internal/httpapi"
 	"github.com/squids911/CSL-VPN/server/internal/store"
 )
+
+func runMaintenance(ctx context.Context, db *sql.DB, logger *slog.Logger) {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+
+	run := func() {
+		jobCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		count, err := store.ExpireOfflineDevices(jobCtx, db)
+		if err != nil {
+			logger.Error("device expiry job failed", "error", err)
+			return
+		}
+		if count > 0 {
+			logger.Info("expired offline device registrations", "count", count)
+		}
+	}
+
+	run()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			run()
+		}
+	}
+}
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -42,6 +71,8 @@ func main() {
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
+
+	go runMaintenance(ctx, db, logger)
 
 	errCh := make(chan error, 1)
 	go func() {
