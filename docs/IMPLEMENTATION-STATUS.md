@@ -12,6 +12,7 @@ Updated: 2026-11-06
 - Liveness, readiness, and API version endpoints.
 - Device enrollment, persistent IP allocation, credential hashing, session leases, heartbeats, exclusive active-session enforcement, and 14-day inactive-device cleanup.
 - Enrollment/session API validation tests and additional database indexes/constraints.
+- Windows service performs HTTPS enrollment using its per-device one-time code.
 
 ### Windows client
 - .NET 10 shared protocol/transport model.
@@ -23,7 +24,8 @@ Updated: 2026-11-06
 - Build workflow for Linux server and Windows client.
 
 ### Control-plane API now committed
-- Bootstrap-token-protected device enrollment with SHA-256 fingerprint validation.
+- Admin-protected issuance of single-use, expiring enrollment codes bound to device names.
+- Transactional enrollment-token consumption with SHA-256 fingerprint validation.
 - Transactional VPN IP allocation from `10.255.0.2` through `10.255.3.254`.
 - Client-generated persistent per-device credential; server stores only SHA-256 hash.
 - Idempotent enrollment when the same device fingerprint and credential are presented again.
