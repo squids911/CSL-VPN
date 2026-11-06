@@ -37,6 +37,7 @@ Apply migrations using the reviewed SQL files in `migrations/`.
 - `GET /health/live`
 - `GET /health/ready`
 - `GET /api/v1/version`
+- `GET /api/v1/device`: authenticated device profile and assigned VPN address
 - `POST /api/v1/enroll`: bootstrap-token enrollment; expects `device_name`, a 32-byte hex `device_fingerprint`, and a client-generated 32-byte hex `device_credential`.
 - `POST /api/v1/sessions`: device Bearer credential; expects `protocol` (`softether` or `wireguard`) and `transport` (`udp` or `tcp`). Returns a 90-second session token.
 - `POST /api/v1/heartbeat`: device Bearer credential plus `session_token` in JSON; renews the session lease.
