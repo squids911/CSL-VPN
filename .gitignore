@@ -1,0 +1,28 @@
+# Build outputs
+bin/
+obj/
+dist/
+build/
+out/
+
+# IDE and editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+secrets/
