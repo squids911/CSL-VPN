@@ -1,28 +1,30 @@
 package httpapi
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 )
 
 type enrollmentTokenResponse struct {
-	Token     string    `json:"token"`
-	DeviceName string   `json:"device_name"`
-	ExpiresAt time.Time `json:"expires_at"`
+	Token      string    `json:"token"`
+	DeviceName string    `json:"device_name"`
+	ExpiresAt  time.Time `json:"expires_at"`
 }
 
 func (s *Server) createEnrollmentToken(w http.ResponseWriter, r *http.Request) {
 	const prefix = "Bearer "
-	provided := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), prefix))
-	if !strings.HasPrefix(r.Header.Get("Authorization"), prefix) ||
+	header := r.Header.Get("Authorization")
+	provided := strings.TrimSpace(strings.TrimPrefix(header, prefix))
+	if !strings.HasPrefix(header, prefix) ||
 		subtle.ConstantTimeCompare([]byte(provided), []byte(s.adminToken)) != 1 {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_admin_token"})
 		return
@@ -61,28 +63,51 @@ func (s *Server) createEnrollmentToken(w http.ResponseWriter, r *http.Request) {
 	token := hex.EncodeToString(rawToken)
 	tokenHash := sha256.Sum256(rawToken)
 
-	var result enrollmentTokenResponse
-	result.Token = token
-	result.DeviceName = deviceName
-	err := s.db.QueryRowContext(r.Context(), `
-		INSERT INTO vpn_enrollment_tokens (
-			token_hash, device_name_normalized, expires_at, created_by
-		)
-		VALUES ($1, $2, now() + ($3 * interval '1 minute'), 'admin-api')
-		RETURNING expires_at
-	`, tokenHash[:], strings.ToLower(deviceName), request.ExpiresInMinutes).Scan(&result.ExpiresAt)
+	result, err := createEnrollmentToken(r.Context(), s.db, token, tokenHash[:], deviceName, request.ExpiresInMinutes)
 	if err != nil {
-		s.logger.Error("store enrollment token", "error", err)
+		s.logger.Error("create enrollment token", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "token_creation_failed"})
 		return
 	}
+	writeJSON(w, http.StatusCreated, result)
+}
 
-	if _, err := s.db.ExecContext(r.Context(), `
+func createEnrollmentToken(
+	ctx context.Context,
+	db *sql.DB,
+	token string,
+	tokenHash []byte,
+	deviceName string,
+	expiresInMinutes int,
+) (enrollmentTokenResponse, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return enrollmentTokenResponse{}, fmt.Errorf("begin token transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	result := enrollmentTokenResponse{Token: token, DeviceName: deviceName}
+	err = tx.QueryRowContext(ctx, `
+		INSERT INTO vpn_enrollment_tokens (
+			token_hash, device_name_normalized, expires_at, created_by
+		)
+		VALUES ($1, $2, now() + ($3::double precision * interval '1 minute'), 'admin-api')
+		RETURNING expires_at
+	`, tokenHash, strings.ToLower(deviceName), expiresInMinutes).Scan(&result.ExpiresAt)
+	if err != nil {
+		return enrollmentTokenResponse{}, fmt.Errorf("insert enrollment token: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO vpn_audit_events (actor_type, actor_id, event_type, details)
 		VALUES ('admin', 'admin-api', 'enrollment_token.created',
 			jsonb_build_object('device_name', $1, 'expires_at', $2))
-	`, deviceName, result.ExpiresAt); err != nil && !errors.Is(err, sql.ErrNoRows) {
-		s.logger.Error("audit enrollment token creation", "error", err)
+	`, deviceName, result.ExpiresAt); err != nil {
+		return enrollmentTokenResponse{}, fmt.Errorf("audit enrollment token: %w", err)
 	}
-	writeJSON(w, http.StatusCreated, result)
+
+	if err := tx.Commit(); err != nil {
+		return enrollmentTokenResponse{}, fmt.Errorf("commit enrollment token: %w", err)
+	}
+	return result, nil
 }
