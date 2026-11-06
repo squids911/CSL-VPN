@@ -1,4 +1,6 @@
 using CSLVpn.Client.Core;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace CSLVpn.Service;
 
