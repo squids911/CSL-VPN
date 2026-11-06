@@ -15,6 +15,7 @@ import (
 
 var (
 	errInvalidFingerprint      = errors.New("invalid device fingerprint")
+	errInvalidBootstrapToken   = errors.New("invalid or consumed enrollment token")
 	errInvalidDeviceCredential = errors.New("invalid device credential")
 	errDeviceAlreadyRegistered = errors.New("device already registered")
 	errAddressPoolExhausted    = errors.New("VPN address pool exhausted")
@@ -27,7 +28,7 @@ type enrollmentResponse struct {
 	Status     string `json:"status"`
 }
 
-func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint, deviceCredential string) (enrollmentResponse, error) {
+func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint, deviceCredential, bootstrapToken string) (enrollmentResponse, error) {
 	rawFingerprint, err := hex.DecodeString(strings.TrimSpace(fingerprint))
 	if err != nil || len(rawFingerprint) != sha256.Size {
 		return enrollmentResponse{}, errInvalidFingerprint
@@ -81,6 +82,28 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint, devi
 		return enrollmentResponse{}, fmt.Errorf("check existing device: %w", err)
 	}
 
+	rawBootstrapToken, err := hex.DecodeString(strings.TrimSpace(bootstrapToken))
+	if err != nil || len(rawBootstrapToken) != 32 {
+		return enrollmentResponse{}, errInvalidBootstrapToken
+	}
+	bootstrapHash := sha256.Sum256(rawBootstrapToken)
+	var enrollmentTokenID string
+	err = tx.QueryRowContext(ctx, `
+		UPDATE vpn_enrollment_tokens
+		SET consumed_at = now()
+		WHERE token_hash = $1
+		  AND device_name_normalized = $2
+		  AND consumed_at IS NULL
+		  AND expires_at > now()
+		RETURNING id::text
+	`, bootstrapHash[:], normalizedName).Scan(&enrollmentTokenID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return enrollmentResponse{}, errInvalidBootstrapToken
+	}
+	if err != nil {
+		return enrollmentResponse{}, fmt.Errorf("consume enrollment token: %w", err)
+	}
+
 	ip, err := allocateVPNAddress(ctx, tx)
 	if err != nil {
 		return enrollmentResponse{}, err
@@ -111,8 +134,8 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint, devi
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO vpn_audit_events (actor_type, actor_id, event_type, details)
 		VALUES ('system', $1, 'device.enrolled',
-			jsonb_build_object('device_name', $2, 'vpn_ipv4', $3))
-	`, result.DeviceID, deviceName, result.VPNIPv4)
+			jsonb_build_object('device_name', $2, 'vpn_ipv4', $3, 'enrollment_token_id', $4))
+	`, result.DeviceID, deviceName, result.VPNIPv4, enrollmentTokenID)
 	if err != nil {
 		return enrollmentResponse{}, fmt.Errorf("write enrollment audit event: %w", err)
 	}
