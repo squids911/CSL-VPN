@@ -2,8 +2,8 @@ package httpapi
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -15,30 +15,29 @@ import (
 
 var (
 	errInvalidFingerprint      = errors.New("invalid device fingerprint")
+	errInvalidDeviceCredential = errors.New("invalid device credential")
 	errDeviceAlreadyRegistered = errors.New("device already registered")
 	errAddressPoolExhausted    = errors.New("VPN address pool exhausted")
 )
 
 type enrollmentResponse struct {
-	DeviceID         string `json:"device_id"`
-	DeviceName       string `json:"device_name"`
-	VPNIPv4          string `json:"vpn_ipv4"`
-	DeviceCredential string `json:"device_credential"`
-	Status           string `json:"status"`
+	DeviceID   string `json:"device_id"`
+	DeviceName string `json:"device_name"`
+	VPNIPv4    string `json:"vpn_ipv4"`
+	Status     string `json:"status"`
 }
 
-func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint string) (enrollmentResponse, error) {
+func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint, deviceCredential string) (enrollmentResponse, error) {
 	rawFingerprint, err := hex.DecodeString(strings.TrimSpace(fingerprint))
 	if err != nil || len(rawFingerprint) != sha256.Size {
 		return enrollmentResponse{}, errInvalidFingerprint
 	}
-
-	credential := make([]byte, 32)
-	if _, err := rand.Read(credential); err != nil {
-		return enrollmentResponse{}, fmt.Errorf("generate device credential: %w", err)
+	rawCredential, err := hex.DecodeString(strings.TrimSpace(deviceCredential))
+	if err != nil || len(rawCredential) != 32 {
+		return enrollmentResponse{}, errInvalidDeviceCredential
 	}
-	credentialText := hex.EncodeToString(credential)
-	credentialHash := sha256.Sum256(credential)
+	credentialHash := sha256.Sum256(rawCredential)
+	normalizedName := strings.ToLower(deviceName)
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -46,9 +45,40 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint strin
 	}
 	defer tx.Rollback()
 
-	// Serialize IP allocation so concurrent enrollments cannot select the same free address.
+	// Serialize registration/IP allocation; repeated enrollment remains idempotent.
 	if _, err := tx.ExecContext(ctx, "SELECT pg_advisory_xact_lock(728194631)"); err != nil {
 		return enrollmentResponse{}, fmt.Errorf("lock IP allocator: %w", err)
+	}
+
+	var existing enrollmentResponse
+	var existingName string
+	var existingCredentialHash []byte
+	err = tx.QueryRowContext(ctx, `
+		SELECT id::text, device_name, device_name_normalized,
+		       vpn_ipv4::text, credential_hash, status
+		FROM vpn_devices
+		WHERE device_fingerprint = $1
+		FOR UPDATE
+	`, rawFingerprint).Scan(
+		&existing.DeviceID,
+		&existing.DeviceName,
+		&existingName,
+		&existing.VPNIPv4,
+		&existingCredentialHash,
+		&existing.Status,
+	)
+	if err == nil {
+		if subtle.ConstantTimeCompare(credentialHash[:], existingCredentialHash) != 1 ||
+			existingName != normalizedName || existing.Status != "active" {
+			return enrollmentResponse{}, errDeviceAlreadyRegistered
+		}
+		if err := tx.Commit(); err != nil {
+			return enrollmentResponse{}, fmt.Errorf("commit repeated enrollment: %w", err)
+		}
+		return existing, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return enrollmentResponse{}, fmt.Errorf("check existing device: %w", err)
 	}
 
 	ip, err := allocateVPNAddress(ctx, tx)
@@ -56,12 +86,11 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint strin
 		return enrollmentResponse{}, err
 	}
 
-	var result enrollmentResponse
-	result.DeviceName = deviceName
-	result.VPNIPv4 = ip
-	result.DeviceCredential = credentialText
-	result.Status = "active"
-
+	result := enrollmentResponse{
+		DeviceName: deviceName,
+		VPNIPv4:    ip,
+		Status:     "active",
+	}
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO vpn_devices (
 			device_name, device_name_normalized, device_fingerprint,
@@ -69,7 +98,7 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint strin
 		)
 		VALUES ($1, $2, $3, $4::inet, $5, 'active', now())
 		RETURNING id::text, vpn_ipv4::text
-	`, deviceName, strings.ToLower(deviceName), rawFingerprint, ip, credentialHash[:]).
+	`, deviceName, normalizedName, rawFingerprint, ip, credentialHash[:]).
 		Scan(&result.DeviceID, &result.VPNIPv4)
 	if err != nil {
 		var pgErr *pgconn.PgError
