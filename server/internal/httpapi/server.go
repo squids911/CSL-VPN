@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -36,6 +35,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/sessions", s.startSession)
 	s.mux.HandleFunc("POST /api/v1/heartbeat", s.heartbeat)
 	s.mux.HandleFunc("GET /api/v1/device", s.getDeviceProfile)
+	s.mux.HandleFunc("POST /api/v1/admin/enrollment-tokens", s.createEnrollmentToken)
 }
 
 func (s *Server) live(w http.ResponseWriter, _ *http.Request) {
@@ -72,18 +72,16 @@ func (s *Server) enroll(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_request"})
 		return
 	}
-	if subtle.ConstantTimeCompare([]byte(request.BootstrapToken), []byte(s.enrollmentToken)) != 1 {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_bootstrap_token"})
-		return
-	}
 	name := strings.TrimSpace(request.DeviceName)
 	if name == "" || len(name) > 64 || strings.ContainsAny(name, "\r\n\x00") {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_device_name"})
 		return
 	}
-	result, err := enrollDevice(r.Context(), s.db, name, request.Fingerprint, request.DeviceCredential)
+	result, err := enrollDevice(r.Context(), s.db, name, request.Fingerprint, request.DeviceCredential, request.BootstrapToken)
 	if err != nil {
 		switch {
+		case errors.Is(err, errInvalidBootstrapToken):
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_or_consumed_enrollment_token"})
 		case errors.Is(err, errInvalidFingerprint):
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_device_fingerprint"})
 		case errors.Is(err, errInvalidDeviceCredential):
