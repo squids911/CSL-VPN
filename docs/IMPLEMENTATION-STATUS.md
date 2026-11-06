@@ -52,7 +52,7 @@ Updated: 2026-11-06
 
 - SoftEther VPN Stable: 4.44 Build 9807 RTM.
 - Go: 1.27.3.
-- Windows client target: .NET 10.
+- Windows client target: .NET 10 LTS (10.0.14 servicing baseline; CI resolves the current 10.0.x SDK).
 - WireGuard: official WireGuard for Windows / WireGuardNT and native Linux WireGuard tools.
 
 ## Build status
