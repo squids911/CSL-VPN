@@ -1,0 +1,48 @@
+# Implementation status
+
+Updated: 2026-11-06
+
+## Committed to develop
+
+### Server
+- Go 1.27.3 module and Linux container build.
+- HTTP server lifecycle, structured request logging, security response headers.
+- PostgreSQL connection/readiness handling.
+- Initial schema for sites, devices, unique device names/fingerprints, VPN addresses, exclusive live sessions, and audit events.
+- Liveness, readiness, and API version endpoints.
+
+### Windows client
+- .NET 10 shared protocol/transport model.
+- Windows Service host shell.
+- System-tray application shell.
+- Build workflow for Linux server and Windows client.
+
+## Not implemented yet
+
+- Secure one-time device enrollment and credential issuance.
+- Transactional address allocator for 10.255.0.0/22.
+- Device-authenticated heartbeat and 14-day expiry.
+- Session lease API and server-side fencing.
+- SoftEther adapter and isolated Virtual Hub provisioning.
+- Native WireGuard adapter and TCP encapsulation adapter.
+- Restricted service/tray IPC and DPAPI-backed device identity.
+- Connection orchestration, automatic transport selection, and reconnect.
+- Admin UI, installer/updater, signing, packaging, and end-to-end tests.
+
+## Transport implementation rules
+
+- SoftEther Stable Edition is used as the L2 engine; UDP acceleration is not advertised as pure UDP-only because SoftEther retains TCP control/session traffic.
+- WireGuard remains the native UDP engine. TCP mode is a separate adapter carrying already-encrypted WireGuard datagrams; no custom cryptography is introduced.
+- Do not bridge the production LAN interface. The first SoftEther hub remains isolated.
+- The configured public port 28457 is a target, not a verified shared listener configuration. Validate every listener with socket inspection and packet capture before firewall changes.
+
+## Release baselines
+
+- SoftEther VPN Stable: 4.44 Build 9807 RTM.
+- Go: 1.27.3.
+- Windows client target: .NET 10.
+- WireGuard: official WireGuard for Windows / WireGuardNT and native Linux WireGuard tools.
+
+## Build status
+
+The GitHub Actions workflow is committed. A successful workflow run is required before calling these scaffolds build-verified. No production installer or server binary is claimed at this stage.
