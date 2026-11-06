@@ -8,7 +8,7 @@ Go-based control plane for CSL VPN. This service is deliberately separate from t
 - PostgreSQL connection and readiness check.
 - HTTP health/version endpoints.
 - Initial schema for sites, devices, exclusive sessions, and audit events.
-- Device enrollment is available at `POST /api/v1/enroll` using a bootstrap token of at least 32 characters. The device credential is returned once; only its SHA-256 hash is stored.
+- Device enrollment is available at `POST /api/v1/enroll` using a bootstrap token of at least 32 characters. The client generates and persists its credential before enrollment; the server stores only its SHA-256 hash. Repeating enrollment with the same device fingerprint and credential returns the original VPN IP.
 - Session leases are available at `POST /api/v1/sessions`; a device can hold only one unexpired lease. `POST /api/v1/heartbeat` renews a lease.
 - A background cleanup job expires registrations after 14 days without a heartbeat and releases their IP addresses.
 
@@ -37,7 +37,7 @@ Apply migrations using the reviewed SQL files in `migrations/`.
 - `GET /health/live`
 - `GET /health/ready`
 - `GET /api/v1/version`
-- `POST /api/v1/enroll`: bootstrap-token enrollment; expects `device_name` and a 32-byte hex `device_fingerprint`.
+- `POST /api/v1/enroll`: bootstrap-token enrollment; expects `device_name`, a 32-byte hex `device_fingerprint`, and a client-generated 32-byte hex `device_credential`.
 - `POST /api/v1/sessions`: device Bearer credential; expects `protocol` (`softether` or `wireguard`) and `transport` (`udp` or `tcp`). Returns a 90-second session token.
 - `POST /api/v1/heartbeat`: device Bearer credential plus `session_token` in JSON; renews the session lease.
 
