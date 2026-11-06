@@ -10,6 +10,8 @@ Updated: 2026-11-06
 - PostgreSQL connection/readiness handling.
 - Initial schema for sites, devices, unique device names/fingerprints, VPN addresses, exclusive live sessions, and audit events.
 - Liveness, readiness, and API version endpoints.
+- Device enrollment, persistent IP allocation, credential hashing, session leases, heartbeats, exclusive active-session enforcement, and 14-day inactive-device cleanup.
+- Enrollment/session API validation tests and additional database indexes/constraints.
 
 ### Windows client
 - .NET 10 shared protocol/transport model.
@@ -29,9 +31,6 @@ Updated: 2026-11-06
 ## Not implemented yet
 
 - Device re-enrollment/recovery flow that safely preserves the existing credential and address.
-- Transactional address allocator for 10.255.0.0/22.
-- Device-authenticated heartbeat and 14-day expiry.
-- Session lease API and server-side fencing.
 - SoftEther adapter and isolated Virtual Hub provisioning.
 - Native WireGuard adapter and TCP encapsulation adapter.
 - Restricted service/tray IPC and DPAPI-backed device identity.
