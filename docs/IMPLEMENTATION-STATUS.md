@@ -17,6 +17,9 @@ Updated: 2026-11-06
 - .NET 10 shared protocol/transport model.
 - Windows Service host shell.
 - System-tray application shell.
+- HTTPS management API client for enrollment, device profile, session start, and heartbeat.
+- DPAPI-protected persistent device identity and client-generated credential.
+- Windows service performs idempotent first enrollment and retains the assigned address.
 - Build workflow for Linux server and Windows client.
 
 ### Control-plane API now committed
@@ -34,7 +37,7 @@ Updated: 2026-11-06
 - Device re-enrollment/recovery flow that safely preserves the existing credential and address.
 - SoftEther adapter and isolated Virtual Hub provisioning.
 - Native WireGuard adapter and TCP encapsulation adapter.
-- Restricted service/tray IPC and DPAPI-backed device identity.
+- Restricted service/tray IPC.
 - Connection orchestration, automatic transport selection, and reconnect.
 - Admin UI, installer/updater, signing, packaging, and end-to-end tests.
 
