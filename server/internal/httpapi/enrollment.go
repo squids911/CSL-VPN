@@ -14,17 +14,17 @@ import (
 )
 
 var (
-	errInvalidFingerprint     = errors.New("invalid device fingerprint")
+	errInvalidFingerprint      = errors.New("invalid device fingerprint")
 	errDeviceAlreadyRegistered = errors.New("device already registered")
-	errAddressPoolExhausted   = errors.New("VPN address pool exhausted")
+	errAddressPoolExhausted    = errors.New("VPN address pool exhausted")
 )
 
 type enrollmentResponse struct {
-	DeviceID        string `json:"device_id"`
-	DeviceName      string `json:"device_name"`
-	VPNIPv4         string `json:"vpn_ipv4"`
+	DeviceID         string `json:"device_id"`
+	DeviceName       string `json:"device_name"`
+	VPNIPv4          string `json:"vpn_ipv4"`
 	DeviceCredential string `json:"device_credential"`
-	Status          string `json:"status"`
+	Status           string `json:"status"`
 }
 
 func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint string) (enrollmentResponse, error) {
@@ -40,7 +40,7 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint strin
 	credentialText := hex.EncodeToString(credential)
 	credentialHash := sha256.Sum256(credential)
 
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return enrollmentResponse{}, fmt.Errorf("begin enrollment transaction: %w", err)
 	}
@@ -98,7 +98,7 @@ func allocateVPNAddress(ctx context.Context, tx *sql.Tx) (string, error) {
 	var ip string
 	err := tx.QueryRowContext(ctx, `
 		SELECT (inet '10.255.0.0' + host_number)::text
-		FROM generate_series(2, 1022) AS host_number
+		FROM generate_series(2, 1022) AS hosts(host_number)
 		WHERE NOT EXISTS (
 			SELECT 1 FROM vpn_devices d
 			WHERE d.vpn_ipv4 = (inet '10.255.0.0' + host_number)
