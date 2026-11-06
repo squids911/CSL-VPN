@@ -17,9 +17,18 @@ Updated: 2026-11-06
 - System-tray application shell.
 - Build workflow for Linux server and Windows client.
 
+### Control-plane API now committed
+- Bootstrap-token-protected device enrollment with SHA-256 fingerprint validation.
+- Transactional VPN IP allocation from `10.255.0.2` through `10.255.3.254`.
+- Per-device random credential; only SHA-256 hash is stored.
+- Device-authenticated session lease creation and heartbeat.
+- Exclusive unexpired session enforcement and stale lease cleanup.
+- Hourly 14-day inactive-device expiry with audit event and IP reclamation.
+- HTTP validation tests for enrollment and credential-gated session routes.
+
 ## Not implemented yet
 
-- Secure one-time device enrollment and credential issuance.
+- Device re-enrollment/recovery flow that safely preserves the existing credential and address.
 - Transactional address allocator for 10.255.0.0/22.
 - Device-authenticated heartbeat and 14-day expiry.
 - Session lease API and server-side fencing.
