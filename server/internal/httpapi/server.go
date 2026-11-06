@@ -1,21 +1,21 @@
 package httpapi
 
 import (
-	"database/sql"
 	"crypto/subtle"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
 )
 
 type Server struct {
-	db     *sql.DB
-	logger *slog.Logger
+	db              *sql.DB
+	logger          *slog.Logger
 	enrollmentToken string
-	mux    *http.ServeMux
+	mux             *http.ServeMux
 }
 
 func New(db *sql.DB, logger *slog.Logger, enrollmentToken string) *Server {
