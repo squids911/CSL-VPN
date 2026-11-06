@@ -41,4 +41,4 @@ Apply migrations using the reviewed SQL files in `migrations/`.
 - `POST /api/v1/sessions`: device Bearer credential; expects `protocol` (`softether` or `wireguard`) and `transport` (`udp` or `tcp`). Returns a 90-second session token.
 - `POST /api/v1/heartbeat`: device Bearer credential plus `session_token` in JSON; renews the session lease.
 
-The API listens on loopback by default. Keep it behind a TLS reverse proxy and do not expose the service directly to the public Internet.
+The API listens on loopback by default. Keep it behind a TLS reverse proxy and do not expose the service directly to the public Internet. Never embed the shared enrollment bootstrap secret in a distributable client installer; the current bootstrap flow is an operator-controlled development mechanism pending per-device one-time enrollment codes.
