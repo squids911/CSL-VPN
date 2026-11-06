@@ -22,7 +22,8 @@ Updated: 2026-11-06
 ### Control-plane API now committed
 - Bootstrap-token-protected device enrollment with SHA-256 fingerprint validation.
 - Transactional VPN IP allocation from `10.255.0.2` through `10.255.3.254`.
-- Per-device random credential; only SHA-256 hash is stored.
+- Client-generated persistent per-device credential; server stores only SHA-256 hash.
+- Idempotent enrollment when the same device fingerprint and credential are presented again.
 - Device-authenticated session lease creation and heartbeat.
 - Exclusive unexpired session enforcement and stale lease cleanup.
 - Hourly 14-day inactive-device expiry with audit event and IP reclamation.
