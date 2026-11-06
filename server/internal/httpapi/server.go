@@ -14,12 +14,12 @@ import (
 type Server struct {
 	db              *sql.DB
 	logger          *slog.Logger
-	enrollmentToken string
+	adminToken       string
 	mux             *http.ServeMux
 }
 
-func New(db *sql.DB, logger *slog.Logger, enrollmentToken string) *Server {
-	s := &Server{db: db, logger: logger, enrollmentToken: enrollmentToken, mux: http.NewServeMux()}
+func New(db *sql.DB, logger *slog.Logger, adminToken string) *Server {
+	s := &Server{db: db, logger: logger, adminToken: adminToken, mux: http.NewServeMux()}
 	s.routes()
 	return s
 }
