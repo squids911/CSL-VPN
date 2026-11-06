@@ -1,11 +1,12 @@
 using CSLVpn.Client.Core;
+using Microsoft.Extensions.Logging;
 
 namespace CSLVpn.Service;
 
 public sealed class ManagementEnrollment(
     ManagementApiClient api,
     DeviceIdentityStore identityStore,
-    ILogger<ManagementEnrollment> logger)
+    ILogger logger)
 {
     public async Task<DeviceIdentity> EnsureEnrolledAsync(
         string? bootstrapToken,
