@@ -25,9 +25,7 @@ Do not expose the service directly to the Internet. Put it behind a TLS-terminat
 ```sh
 cd server
 go mod tidy
-CSLVPN_DATABASE_URL='postgres://cslvpn:change-me@127.0.0.1:5432/cslvpn?sslmode=disable' \\
-CSLVPN_ENROLLMENT_TOKEN='replace-with-a-random-secret-of-at-least-32-characters' \\
-go run ./cmd/cslvpn-server
+CSLVPN_DATABASE_URL='postgres://cslvpn:change-me@127.0.0.1:5432/cslvpn?sslmode=disable' CSLVPN_ENROLLMENT_TOKEN='replace-with-a-random-secret-of-at-least-32-characters' go run ./cmd/cslvpn-server
 ```
 
 Apply migrations using the reviewed SQL files in `migrations/`.
