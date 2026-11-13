@@ -2,23 +2,16 @@ package httpapi
 
 import (
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strings"
 )
 
 func (s *Server) disconnectSession(w http.ResponseWriter, r *http.Request) {
 	deviceID, ok := s.authenticateDevice(w, r)
-	if !ok {
-		return
-	}
-
-	var request struct {
-		SessionToken string `json:"session_token"`
-	}
+	if !ok { return }
+	var request struct { SessionToken string `json:"session_token"` }
 	r.Body = http.MaxBytesReader(w, r.Body, 4*1024)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
@@ -32,12 +25,9 @@ func (s *Server) disconnectSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tokenHash := sha256.Sum256(rawToken)
-
 	result, err := s.db.ExecContext(r.Context(), `
-		UPDATE vpn_sessions
-		SET disconnected_at = now(), expires_at = now()
-		WHERE device_id = $1 AND lease_token_hash = $2
-			AND disconnected_at IS NULL
+		UPDATE vpn_sessions SET disconnected_at = now(), expires_at = now()
+		WHERE device_id = $1 AND lease_token_hash = $2 AND disconnected_at IS NULL
 	`, deviceID, tokenHash[:])
 	if err != nil {
 		s.logger.Error("disconnect session", "error", err)
@@ -53,10 +43,7 @@ func (s *Server) disconnectSession(w http.ResponseWriter, r *http.Request) {
 	if rows == 0 {
 		var exists bool
 		err = s.db.QueryRowContext(r.Context(), `
-			SELECT EXISTS (
-				SELECT 1 FROM vpn_sessions
-				WHERE device_id = $1 AND lease_token_hash = $2
-			)
+			SELECT EXISTS (SELECT 1 FROM vpn_sessions WHERE device_id = $1 AND lease_token_hash = $2)
 		`, deviceID, tokenHash[:]).Scan(&exists)
 		if err != nil {
 			s.logger.Error("check disconnected session", "error", err)
