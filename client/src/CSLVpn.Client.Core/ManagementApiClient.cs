@@ -73,6 +73,19 @@ public sealed class ManagementApiClient
             cancellationToken);
     }
 
+    public async Task DisconnectSessionAsync(
+        string deviceCredential,
+        string sessionToken,
+        CancellationToken cancellationToken = default)
+    {
+        _ = await SendAuthorizedAsync<DisconnectResult>(
+            HttpMethod.Post,
+            "api/v1/sessions/disconnect",
+            deviceCredential,
+            new HeartbeatRequest(sessionToken),
+            cancellationToken);
+    }
+
     private async Task<T> SendAuthorizedAsync<T>(
         HttpMethod method,
         string path,
