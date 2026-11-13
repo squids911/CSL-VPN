@@ -34,6 +34,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/enroll", s.enroll)
 	s.mux.HandleFunc("POST /api/v1/sessions", s.startSession)
 	s.mux.HandleFunc("POST /api/v1/heartbeat", s.heartbeat)
+	s.mux.HandleFunc("POST /api/v1/sessions/disconnect", s.disconnectSession)
 	s.mux.HandleFunc("GET /api/v1/device", s.getDeviceProfile)
 	s.mux.HandleFunc("POST /api/v1/admin/enrollment-tokens", s.createEnrollmentToken)
 }
