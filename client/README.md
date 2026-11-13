@@ -21,6 +21,10 @@ Target: Windows 10/11 and Windows Server x64, .NET 10 LTS (CI resolves the lates
 
 The client does not establish a VPN tunnel yet. SoftEther and WireGuard engine adapters, service/tray IPC, connection orchestration, session heartbeat once a data plane is active, and signed installer/updater are still in progress.
 
+## Management API
+
+The Core API client supports device profile retrieval, SoftEther session lease creation, heartbeat renewal, and explicit session disconnect. Session leases are control-plane state only; they do not provision a SoftEther account or establish a data-plane tunnel.
+
 ## First enrollment configuration
 
 Create a one-time enrollment code through the admin API for the device name, then set machine-level environment variables before starting the service:
