@@ -40,5 +40,6 @@ Apply migrations using the reviewed SQL files in `migrations/`.
 - `POST /api/v1/enroll`: one-time-token enrollment; expects a 64-character hex `bootstrap_token`, `device_name`, a 32-byte hex `device_fingerprint`, and a client-generated 32-byte hex `device_credential`.
 - `POST /api/v1/sessions`: device Bearer credential; expects `protocol` (`softether` or `wireguard`) and `transport` (`udp` or `tcp`). Returns a 90-second session token.
 - `POST /api/v1/heartbeat`: device Bearer credential plus `session_token` in JSON; renews the session lease.
+- `POST /api/v1/sessions/disconnect`: device Bearer credential plus `session_token` in JSON; closes that device's session lease.
 
 The API listens on loopback by default. Keep it behind a TLS reverse proxy and do not expose the service directly to the public Internet. Enrollment codes are single-use, expire after the configured period, and are bound to the intended device name. Never embed an enrollment code or administrator token in a distributable client installer.
