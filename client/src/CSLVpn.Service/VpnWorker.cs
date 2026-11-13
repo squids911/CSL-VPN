@@ -52,10 +52,24 @@ public sealed class VpnWorker(ILogger<VpnWorker> logger, IConfiguration configur
                 var identity = await enrollment.EnsureEnrolledAsync(
                     configuration["CSLVPN_BOOTSTRAP_TOKEN"],
                     stoppingToken);
+                var profile = await api.GetDeviceProfileAsync(
+                    identity.DeviceCredential,
+                    stoppingToken);
+
+                if (!string.Equals(profile.Status, "active", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("The CSL VPN device is not active on the management server.");
+
+                if (!string.Equals(profile.DeviceId, identity.ServerDeviceId, StringComparison.Ordinal) ||
+                    !string.Equals(profile.VpnIPv4, identity.VpnIPv4, StringComparison.Ordinal))
+                    throw new InvalidDataException("The management server device profile does not match the enrolled device identity.");
+
+                if (!string.Equals(profile.VpnPrefix, "10.255.0.0/22", StringComparison.Ordinal))
+                    throw new InvalidDataException($"Unexpected CSL VPN address pool: {profile.VpnPrefix}");
+
                 logger.LogInformation(
-                    "CSL VPN device identity is ready; server ID {DeviceId}, assigned VPN IP {VpnIPv4}",
-                    identity.ServerDeviceId,
-                    identity.VpnIPv4);
+                    "CSL VPN device profile validated; server ID {DeviceId}, assigned VPN IP {VpnIPv4}",
+                    profile.DeviceId,
+                    profile.VpnIPv4);
                 return;
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
