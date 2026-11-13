@@ -119,4 +119,7 @@ public sealed class ManagementApiClient
 
     private sealed record HeartbeatResult(
         [property: System.Text.Json.Serialization.JsonPropertyName("status")] string Status);
+
+    private sealed record DisconnectResult(
+        [property: System.Text.Json.Serialization.JsonPropertyName("status")] string Status);
 }
