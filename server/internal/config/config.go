@@ -9,6 +9,7 @@ type Config struct {
 	ListenAddress   string
 	DatabaseURL     string
 	AdminToken      string
+	ProvisionerToken string
 }
 
 func Load() (Config, error) {
@@ -16,9 +17,13 @@ func Load() (Config, error) {
 		ListenAddress: env("CSLVPN_LISTEN", "127.0.0.1:8088"),
 		DatabaseURL:   os.Getenv("CSLVPN_DATABASE_URL"),
 		AdminToken:      os.Getenv("CSLVPN_ADMIN_TOKEN"),
+		ProvisionerToken: os.Getenv("CSLVPN_PROVISIONER_TOKEN"),
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, errors.New("CSLVPN_DATABASE_URL is required")
+	}
+	if len(cfg.ProvisionerToken) < 32 {
+		return Config{}, errors.New("CSLVPN_PROVISIONER_TOKEN must contain at least 32 characters")
 	}
 	if len(cfg.AdminToken) < 32 {
 		return Config{}, errors.New("CSLVPN_ADMIN_TOKEN must contain at least 32 characters")
