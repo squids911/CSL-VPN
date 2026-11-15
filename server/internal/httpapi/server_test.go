@@ -48,3 +48,14 @@ func TestAdminEnrollmentTokenEndpointRequiresAdminToken(t *testing.T) {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusUnauthorized, response.Code, response.Body.String())
 	}
 }
+
+func TestProvisioningAgentEndpointsRequireDedicatedToken(t *testing.T) {
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/agent/provisioning/claim", bytes.NewReader([]byte(`{"worker_id":"vpn-host-01"}`)))
+	response := httptest.NewRecorder()
+
+	testServer().ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusUnauthorized, response.Code, response.Body.String())
+	}
+}
