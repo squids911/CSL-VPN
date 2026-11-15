@@ -11,6 +11,7 @@ Go-based control plane for CSL VPN. This service is deliberately separate from t
 - Device enrollment is available at `POST /api/v1/enroll` using a single-use 64-character hex enrollment code. The client generates and persists its credential before enrollment; the server stores only its SHA-256 hash. Repeating enrollment with the same device fingerprint and credential returns the original VPN IP.
 - Session leases are available at `POST /api/v1/sessions`; a device can hold only one unexpired lease. `POST /api/v1/heartbeat` renews a lease.
 - A background cleanup job expires registrations after 14 days without a heartbeat and releases their IP addresses.
+- Migration `004_device_provisioning_outbox.sql` adds stable per-device VPN MAC addresses and a transactional provisioning outbox. Enrollment queues DHCP reservation and SoftEther account jobs in the same database transaction as the device registration. The privileged VPN-host agent that applies these jobs is not implemented yet; devices must not be allowed to connect until provisioning is complete.
 
 ## Configuration
 
@@ -28,14 +29,14 @@ go mod tidy
 CSLVPN_DATABASE_URL='postgres://cslvpn:change-me@127.0.0.1:5432/cslvpn?sslmode=disable' CSLVPN_ADMIN_TOKEN='replace-with-a-random-secret-of-at-least-32-characters' go run ./cmd/cslvpn-server
 ```
 
-Apply migrations using the reviewed SQL files in `migrations/`.
+Apply migrations in numeric order using the reviewed SQL files in `migrations/`, including migration 004 before deploying this version.
 
 ## API
 
 - `GET /health/live`
 - `GET /health/ready`
 - `GET /api/v1/version`
-- `GET /api/v1/device`: authenticated device profile and assigned VPN address
+- `GET /api/v1/device`: authenticated device profile, assigned VPN address/MAC, and provisioning state
 - `POST /api/v1/admin/enrollment-tokens`: admin Bearer token; creates a one-time enrollment code bound to a device name. The plaintext token is returned only once.
 - `POST /api/v1/enroll`: one-time-token enrollment; expects a 64-character hex `bootstrap_token`, `device_name`, a 32-byte hex `device_fingerprint`, and a client-generated 32-byte hex `device_credential`.
 - `POST /api/v1/sessions`: device Bearer credential; expects `protocol` (`softether` or `wireguard`) and `transport` (`udp` or `tcp`). Returns a 90-second session token.
