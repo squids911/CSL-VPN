@@ -46,7 +46,6 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint, devi
 	}
 	defer tx.Rollback()
 
-	// Serialize registration/IP allocation; repeated enrollment remains idempotent.
 	if _, err := tx.ExecContext(ctx, "SELECT pg_advisory_xact_lock(728194631)"); err != nil {
 		return enrollmentResponse{}, fmt.Errorf("lock IP allocator: %w", err)
 	}
@@ -61,30 +60,15 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint, devi
 		WHERE device_fingerprint = $1
 		FOR UPDATE
 	`, rawFingerprint).Scan(
-		&existing.DeviceID,
-		&existing.DeviceName,
-		&existingName,
-		&existing.VPNIPv4,
-		&existingCredentialHash,
-		&existing.Status,
+		&existing.DeviceID, &existing.DeviceName, &existingName,
+		&existing.VPNIPv4, &existingCredentialHash, &existing.Status,
 	)
 	if err == nil {
 		if subtle.ConstantTimeCompare(credentialHash[:], existingCredentialHash) != 1 ||
 			existingName != normalizedName || existing.Status != "active" {
 			return enrollmentResponse{}, errDeviceAlreadyRegistered
 		}
-		if _, err := tx.ExecContext(ctx, `
-		INSERT INTO vpn_provisioning_jobs (device_id, job_type, payload)
-		VALUES
-			($1, 'dhcp_reservation',
-			 jsonb_build_object('device_id', $1, 'vpn_ipv4', $2, 'vpn_mac', $3)),
-			($1, 'softether_account',
-			 jsonb_build_object('device_id', $1, 'device_name', $4))
-	`, result.DeviceID, result.VPNIPv4, vpnMAC, deviceName); err != nil {
-		return enrollmentResponse{}, fmt.Errorf("enqueue device provisioning: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
+		if err := tx.Commit(); err != nil {
 			return enrollmentResponse{}, fmt.Errorf("commit repeated enrollment: %w", err)
 		}
 		return existing, nil
@@ -119,7 +103,6 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint, devi
 	if err != nil {
 		return enrollmentResponse{}, err
 	}
-
 	vpnMAC := deterministicVPNMAC(rawFingerprint)
 	result := enrollmentResponse{
 		DeviceName: deviceName,
@@ -143,13 +126,24 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint, devi
 		return enrollmentResponse{}, fmt.Errorf("insert device: %w", err)
 	}
 
-	_, err = tx.ExecContext(ctx, `
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO vpn_audit_events (actor_type, actor_id, event_type, details)
 		VALUES ('system', $1, 'device.enrolled',
-			jsonb_build_object('device_name', $2, 'vpn_ipv4', $3, 'enrollment_token_id', $4))
-	`, result.DeviceID, deviceName, result.VPNIPv4, enrollmentTokenID)
-	if err != nil {
+			jsonb_build_object('device_name', $2, 'vpn_ipv4', $3, 'vpn_mac', $4, 'enrollment_token_id', $5))
+	`, result.DeviceID, deviceName, result.VPNIPv4, vpnMAC, enrollmentTokenID); err != nil {
 		return enrollmentResponse{}, fmt.Errorf("write enrollment audit event: %w", err)
+	}
+
+	// Durable jobs are applied by a privileged agent on the VPN host.
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO vpn_provisioning_jobs (device_id, job_type, payload)
+		VALUES
+			($1, 'dhcp_reservation',
+			 jsonb_build_object('device_id', $1, 'vpn_ipv4', $2, 'vpn_mac', $3)),
+			($1, 'softether_account',
+			 jsonb_build_object('device_id', $1, 'device_name', $4))
+	`, result.DeviceID, result.VPNIPv4, vpnMAC, deviceName); err != nil {
+		return enrollmentResponse{}, fmt.Errorf("enqueue device provisioning: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -179,9 +173,6 @@ func allocateVPNAddress(ctx context.Context, tx *sql.Tx) (string, error) {
 	return ip, nil
 }
 
-
-// deterministicVPNMAC returns a stable locally administered unicast MAC address.
-// The address is derived from the immutable device fingerprint, not the device name.
 func deterministicVPNMAC(fingerprint []byte) string {
 	sum := sha256.Sum256(fingerprint)
 	return fmt.Sprintf("02:%02x:%02x:%02x:%02x:%02x",
