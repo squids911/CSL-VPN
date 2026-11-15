@@ -30,7 +30,7 @@ go mod tidy
 CSLVPN_DATABASE_URL='postgres://cslvpn:change-me@127.0.0.1:5432/cslvpn?sslmode=disable' CSLVPN_ADMIN_TOKEN='replace-with-a-random-secret-of-at-least-32-characters' CSLVPN_PROVISIONER_TOKEN='use-a-different-random-secret-of-at-least-32-characters' go run ./cmd/cslvpn-server
 ```
 
-Apply migrations in numeric order using the reviewed SQL files in `migrations/`, including migration 004 before deploying this version.
+Apply migrations in numeric order using the reviewed SQL files in `migrations/`, including migrations 004 and 005 before deploying this version.
 
 ## API
 
