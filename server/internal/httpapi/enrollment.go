@@ -73,7 +73,18 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint, devi
 			existingName != normalizedName || existing.Status != "active" {
 			return enrollmentResponse{}, errDeviceAlreadyRegistered
 		}
-		if err := tx.Commit(); err != nil {
+		if _, err := tx.ExecContext(ctx, `
+		INSERT INTO vpn_provisioning_jobs (device_id, job_type, payload)
+		VALUES
+			($1, 'dhcp_reservation',
+			 jsonb_build_object('device_id', $1, 'vpn_ipv4', $2, 'vpn_mac', $3)),
+			($1, 'softether_account',
+			 jsonb_build_object('device_id', $1, 'device_name', $4))
+	`, result.DeviceID, result.VPNIPv4, vpnMAC, deviceName); err != nil {
+		return enrollmentResponse{}, fmt.Errorf("enqueue device provisioning: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
 			return enrollmentResponse{}, fmt.Errorf("commit repeated enrollment: %w", err)
 		}
 		return existing, nil
@@ -109,6 +120,7 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint, devi
 		return enrollmentResponse{}, err
 	}
 
+	vpnMAC := deterministicVPNMAC(rawFingerprint)
 	result := enrollmentResponse{
 		DeviceName: deviceName,
 		VPNIPv4:    ip,
@@ -117,11 +129,11 @@ func enrollDevice(ctx context.Context, db *sql.DB, deviceName, fingerprint, devi
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO vpn_devices (
 			device_name, device_name_normalized, device_fingerprint,
-			vpn_ipv4, credential_hash, status, last_seen_at
+			vpn_ipv4, vpn_mac, credential_hash, status, last_seen_at
 		)
-		VALUES ($1, $2, $3, $4::inet, $5, 'active', now())
+		VALUES ($1, $2, $3, $4::inet, $5::macaddr, $6, 'active', now())
 		RETURNING id::text, vpn_ipv4::text
-	`, deviceName, normalizedName, rawFingerprint, ip, credentialHash[:]).
+	`, deviceName, normalizedName, rawFingerprint, ip, vpnMAC, credentialHash[:]).
 		Scan(&result.DeviceID, &result.VPNIPv4)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -165,4 +177,13 @@ func allocateVPNAddress(ctx context.Context, tx *sql.Tx) (string, error) {
 		return "", fmt.Errorf("find free VPN address: %w", err)
 	}
 	return ip, nil
+}
+
+
+// deterministicVPNMAC returns a stable locally administered unicast MAC address.
+// The address is derived from the immutable device fingerprint, not the device name.
+func deterministicVPNMAC(fingerprint []byte) string {
+	sum := sha256.Sum256(fingerprint)
+	return fmt.Sprintf("02:%02x:%02x:%02x:%02x:%02x",
+		sum[0], sum[1], sum[2], sum[3], sum[4])
 }
