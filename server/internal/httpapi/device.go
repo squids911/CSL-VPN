@@ -8,9 +8,11 @@ type deviceProfile struct {
 	DeviceID   string  `json:"device_id"`
 	DeviceName string  `json:"device_name"`
 	VPNIPv4    string  `json:"vpn_ipv4"`
-	VPNPrefix  string  `json:"vpn_prefix"`
-	SiteID     *string `json:"site_id,omitempty"`
-	Status     string  `json:"status"`
+	VPNPrefix          string  `json:"vpn_prefix"`
+	VPNMAC             string  `json:"vpn_mac"`
+	ProvisioningStatus string  `json:"provisioning_status"`
+	SiteID             *string `json:"site_id,omitempty"`
+	Status             string  `json:"status"`
 }
 
 func (s *Server) getDeviceProfile(w http.ResponseWriter, r *http.Request) {
@@ -22,13 +24,16 @@ func (s *Server) getDeviceProfile(w http.ResponseWriter, r *http.Request) {
 	var profile deviceProfile
 	var siteID *string
 	err := s.db.QueryRowContext(r.Context(), `
-		SELECT id::text, device_name, vpn_ipv4::text, site_id::text, status
+		SELECT id::text, device_name, vpn_ipv4::text, vpn_mac::text,
+		       provisioning_status, site_id::text, status
 		FROM vpn_devices
 		WHERE id = $1 AND status = 'active'
 	`, deviceID).Scan(
 		&profile.DeviceID,
 		&profile.DeviceName,
 		&profile.VPNIPv4,
+		&profile.VPNMAC,
+		&profile.ProvisioningStatus,
 		&siteID,
 		&profile.Status,
 	)
