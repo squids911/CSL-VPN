@@ -9,7 +9,7 @@ CSL VPN is intended to provide centrally managed connectivity for Windows endpoi
 ### Control plane
 - Management API: device enrollment, authentication, session leases, configuration delivery, and administrative operations.
 - PostgreSQL: persistent device records, site metadata, address assignments, certificates/credential metadata, and audit events.
-- IPAM: unique allocation from the VPN client pool and deterministic reassignment for a returning device identity.
+- IPAM: unique allocation from the VPN client pool, deterministic adapter MAC assignment, and transactional provisioning outbox for DHCP reservations and SoftEther accounts.
 - Administration UI: manage devices, sites, access policy, and operational state.
 
 ### Client
@@ -39,6 +39,14 @@ CSL VPN is intended to provide centrally managed connectivity for Windows endpoi
 5. Client obtains its connection configuration and establishes a data-plane session.
 6. Heartbeats refresh the registration's last-seen timestamp.
 7. A registration offline for 14 days becomes eligible for expiration and address reclamation, subject to a safe cleanup policy.
+
+## Server-side provisioning lifecycle
+
+- Enrollment atomically stores the device address/MAC and queues DHCP-reservation plus SoftEther-account jobs.
+- A dedicated provisioner credential is separate from device and administrator credentials.
+- The worker API leases jobs with `FOR UPDATE SKIP LOCKED`, a 60-second lease, and worker ownership checks on completion.
+- The device remains blocked until every required provisioning job is acknowledged successfully.
+- The worker API is only the control interface; the privileged VPN-host execution agent and secure SoftEther credential-delivery design are still required before production use.
 
 ## Security principles
 
