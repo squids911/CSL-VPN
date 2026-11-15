@@ -66,10 +66,17 @@ public sealed class VpnWorker(ILogger<VpnWorker> logger, IConfiguration configur
                 if (!string.Equals(profile.VpnPrefix, "10.255.0.0/22", StringComparison.Ordinal))
                     throw new InvalidDataException($"Unexpected CSL VPN address pool: {profile.VpnPrefix}");
 
+                if (!string.Equals(profile.ProvisioningStatus, "ready", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"CSL VPN server provisioning is not ready: {profile.ProvisioningStatus}");
+
+                if (string.IsNullOrWhiteSpace(profile.VpnMac))
+                    throw new InvalidDataException("The management server did not assign a VPN adapter MAC address.");
+
                 logger.LogInformation(
-                    "CSL VPN device profile validated; server ID {DeviceId}, assigned VPN IP {VpnIPv4}",
+                    "CSL VPN device profile validated; server ID {DeviceId}, assigned VPN IP {VpnIPv4} and MAC {VpnMac}",
                     profile.DeviceId,
-                    profile.VpnIPv4);
+                    profile.VpnIPv4,
+                    profile.VpnMac);
                 return;
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
