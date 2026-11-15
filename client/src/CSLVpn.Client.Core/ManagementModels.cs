@@ -13,6 +13,8 @@ public sealed record DeviceProfile(
     [property: JsonPropertyName("device_name")] string DeviceName,
     [property: JsonPropertyName("vpn_ipv4")] string VpnIPv4,
     [property: JsonPropertyName("vpn_prefix")] string VpnPrefix,
+    [property: JsonPropertyName("vpn_mac")] string VpnMac,
+    [property: JsonPropertyName("provisioning_status")] string ProvisioningStatus,
     [property: JsonPropertyName("site_id")] string? SiteId,
     [property: JsonPropertyName("status")] string Status);
 
