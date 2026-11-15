@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated: 2026-11-06
+Updated: 2026-11-15
 
 ## Committed to develop
 
@@ -32,11 +32,16 @@ Updated: 2026-11-06
 - Device-authenticated session lease creation and heartbeat.
 - Exclusive unexpired session enforcement and stale lease cleanup.
 - Hourly 14-day inactive-device expiry with audit event and IP reclamation.
-- HTTP validation tests for enrollment and credential-gated session routes.
+- HTTP validation tests for enrollment and credential-gated session routes, deterministic MAC allocation, and provisioning-worker credential isolation.
+- Transactional provisioning outbox for DHCP reservation and SoftEther account setup.
+- Stable per-device locally administered VPN MAC allocation and authenticated device-profile delivery.
+- Dedicated provisioner-worker credential, leased job-claim API, and completion/failure acknowledgement API with audit events.
+- Windows Service fails closed until server-side provisioning reports ready.
 
 ## Not implemented yet
 
 - Device re-enrollment/recovery flow that safely preserves the existing credential and address.
+- VPN-host provisioning agent that safely applies dnsmasq DHCP reservations and SoftEther accounts (worker API/outbox are present; execution agent is not yet implemented).
 - SoftEther adapter and isolated Virtual Hub provisioning.
 - Native WireGuard adapter and TCP encapsulation adapter.
 - Restricted service/tray IPC.
