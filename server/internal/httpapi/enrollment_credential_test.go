@@ -21,3 +21,18 @@ func TestEnrollRejectsMalformedDeviceCredential(t *testing.T) {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, response.Code, response.Body.String())
 	}
 }
+
+func TestDeterministicVPNMACIsStableLocallyAdministeredUnicast(t *testing.T) {
+	fingerprint := bytes.Repeat([]byte{0x5a}, 32)
+	first := deterministicVPNMAC(fingerprint)
+	second := deterministicVPNMAC(fingerprint)
+	if first != second {
+		t.Fatalf("MAC changed for the same fingerprint: %q != %q", first, second)
+	}
+	if len(first) != 17 || first[:3] != "02:" {
+		t.Fatalf("expected locally administered unicast MAC, got %q", first)
+	}
+	if deterministicVPNMAC(bytes.Repeat([]byte{0x5b}, 32)) == first {
+		t.Fatal("different fingerprints unexpectedly produced the same MAC")
+	}
+}
