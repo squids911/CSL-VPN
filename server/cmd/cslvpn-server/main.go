@@ -62,7 +62,7 @@ func main() {
 	}
 	defer db.Close()
 
-	api := httpapi.New(db, logger, cfg.AdminToken)
+	api := httpapi.New(db, logger, cfg.AdminToken, cfg.ProvisionerToken)
 	server := &http.Server{
 		Addr:              cfg.ListenAddress,
 		Handler:           api.Handler(),
