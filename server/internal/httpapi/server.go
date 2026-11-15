@@ -14,11 +14,16 @@ type Server struct {
 	db              *sql.DB
 	logger          *slog.Logger
 	adminToken       string
-	mux             *http.ServeMux
+	provisionerToken string
+	mux              *http.ServeMux
 }
 
-func New(db *sql.DB, logger *slog.Logger, adminToken string) *Server {
-	s := &Server{db: db, logger: logger, adminToken: adminToken, mux: http.NewServeMux()}
+func New(db *sql.DB, logger *slog.Logger, adminToken string, provisionerTokens ...string) *Server {
+	var provisionerToken string
+	if len(provisionerTokens) > 0 {
+		provisionerToken = provisionerTokens[0]
+	}
+	s := &Server{db: db, logger: logger, adminToken: adminToken, provisionerToken: provisionerToken, mux: http.NewServeMux()}
 	s.routes()
 	return s
 }
@@ -37,6 +42,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/sessions/disconnect", s.disconnectSession)
 	s.mux.HandleFunc("GET /api/v1/device", s.getDeviceProfile)
 	s.mux.HandleFunc("POST /api/v1/admin/enrollment-tokens", s.createEnrollmentToken)
+	s.mux.HandleFunc("POST /api/v1/agent/provisioning/claim", s.claimProvisioningJob)
+	s.mux.HandleFunc("POST /api/v1/agent/provisioning/jobs/{id}/complete", s.completeProvisioningJob)
 }
 
 func (s *Server) live(w http.ResponseWriter, _ *http.Request) {
