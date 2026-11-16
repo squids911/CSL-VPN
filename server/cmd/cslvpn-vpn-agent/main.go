@@ -132,10 +132,23 @@ func (a *agent) process(ctx context.Context, item job) error {
 	if reservation.DeviceID != item.DeviceID {
 		return errors.New("job device_id does not match payload")
 	}
+	previous, readErr := os.ReadFile(a.cfg.reservationFile)
+	existed := readErr == nil
+	if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
+		return fmt.Errorf("snapshot existing reservation file: %w", readErr)
+	}
 	if err := provisioner.ApplyDHCPReservation(a.cfg.reservationFile, reservation); err != nil {
 		return err
 	}
 	if err := provisioner.ValidateAndRestartDNSMasq(ctx, a.cfg.dnsmasqConfig); err != nil {
+		rollbackErr := provisioner.RestoreReservationFile(a.cfg.reservationFile, previous, existed)
+		if rollbackErr != nil {
+			return fmt.Errorf("dnsmasq apply failed: %v; reservation rollback failed: %w", err, rollbackErr)
+		}
+		restartErr := provisioner.ValidateAndRestartDNSMasq(ctx, a.cfg.dnsmasqConfig)
+		if restartErr != nil {
+			return fmt.Errorf("dnsmasq apply failed: %v; previous configuration restored but restart failed: %w", err, restartErr)
+		}
 		return err
 	}
 	return nil
