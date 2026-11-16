@@ -32,6 +32,9 @@ jobs:
         run: |
           mkdir -p dist
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/cslvpn-server ./cmd/cslvpn-server
+      - name: Build VPN host DHCP agent Linux x64
+        working-directory: server
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/cslvpn-vpn-agent ./cmd/cslvpn-vpn-agent
       - name: Build server container
         run: docker build -t cslvpn-server:ci ./server
       - uses: actions/upload-artifact@v4
