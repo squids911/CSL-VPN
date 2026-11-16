@@ -167,11 +167,11 @@ func ValidateDNSMasqInclude(configPath, reservationPath string) error {
 }
 
 func ValidateAndRestartDNSMasq(ctx context.Context, configPath string) error {
-	test := exec.CommandContext(ctx, "dnsmasq", "--test", "--conf-file="+configPath)
+	test := exec.CommandContext(ctx, "/usr/sbin/dnsmasq", "--test", "--conf-file="+configPath)
 	if output, err := test.CombinedOutput(); err != nil {
 		return fmt.Errorf("dnsmasq configuration test failed: %w: %s", err, strings.TrimSpace(string(output)))
 	}
-	restart := exec.CommandContext(ctx, "systemctl", "restart", "dnsmasq")
+	restart := exec.CommandContext(ctx, "/usr/bin/systemctl", "restart", "dnsmasq")
 	if output, err := restart.CombinedOutput(); err != nil {
 		return fmt.Errorf("dnsmasq restart failed: %w: %s", err, strings.TrimSpace(string(output)))
 	}
