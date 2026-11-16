@@ -39,6 +39,7 @@ Updated: 2026-11-16
 - First VPN-host agent milestone: Linux worker polls the control plane over HTTPS and claims only DHCP reservation jobs.
 - DHCP reservation worker validates UUID/IP/MAC payloads, limits addresses to the VPN /22 allocation pool, atomically maintains a dedicated dnsmasq include file, validates dnsmasq configuration, restarts dnsmasq, and restores the previous file if applying the new configuration fails.
 - CI now builds and publishes a separate Linux x64 VPN-host agent artifact.
+- Added a hardened systemd unit and a token-free environment-file example for VPN-host deployment.
 - Windows Service fails closed until server-side provisioning reports ready.
 
 ## Not implemented yet
