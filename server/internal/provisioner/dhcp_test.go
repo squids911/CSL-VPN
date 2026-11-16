@@ -73,3 +73,28 @@ func TestApplyDHCPReservationRejectsAddressCollision(t *testing.T) {
 		t.Fatal("expected address collision to be rejected")
 	}
 }
+
+func TestRestoreReservationFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cslvpn-reservations.conf")
+	original := []byte("dhcp-host=02:00:00:00:00:01,10.255.0.2,infinite\n")
+	if err := os.WriteFile(path, []byte("invalid"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := RestoreReservationFile(path, original, true); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(original) {
+		t.Fatalf("rollback content mismatch: %q", got)
+	}
+	if err := RestoreReservationFile(path, nil, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("expected reservation file to be removed, got %v", err)
+	}
+}
