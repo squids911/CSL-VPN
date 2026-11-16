@@ -11,7 +11,9 @@ Go-based control plane for CSL VPN. This service is deliberately separate from t
 - Device enrollment is available at `POST /api/v1/enroll` using a single-use 64-character hex enrollment code. The client generates and persists its credential before enrollment; the server stores only its SHA-256 hash. Repeating enrollment with the same device fingerprint and credential returns the original VPN IP.
 - Session leases are available at `POST /api/v1/sessions`; a device can hold only one unexpired lease. `POST /api/v1/heartbeat` renews a lease.
 - A background cleanup job expires registrations after 14 days without a heartbeat and releases their IP addresses.
-- Migration `004_device_provisioning_outbox.sql` adds stable per-device VPN MAC addresses and a transactional provisioning outbox. Enrollment queues DHCP reservation and SoftEther account jobs in the same database transaction as the device registration. The authenticated worker API leases jobs to a privileged VPN-host agent and accepts success/failure acknowledgements. The agent that safely applies dnsmasq reservations and SoftEther accounts is not implemented yet; devices must not be allowed to connect until provisioning is complete.
+- Migrations `004_device_provisioning_outbox.sql` and `005_provisioning_job_leases.sql` add stable per-device VPN MAC addresses and a transactional provisioning outbox. Enrollment queues DHCP reservation and SoftEther account jobs in the same database transaction as device registration.
+- `cmd/cslvpn-vpn-agent` is the first privileged VPN-host worker milestone. It claims only `dhcp_reservation` jobs over HTTPS, validates device/IP/MAC payloads, updates a dedicated dnsmasq include file atomically, runs `dnsmasq --test`, restarts dnsmasq, and restores the previous reservation file if validation or restart fails. It never executes shell strings and never claims SoftEther account jobs.
+- SoftEther account provisioning and secure per-device credential delivery are not implemented. A device remains `pending` until both DHCP and SoftEther jobs are completed; do not enable VPN connections before `provisioning_status=ready`.
 
 ## Configuration
 
@@ -19,6 +21,7 @@ Go-based control plane for CSL VPN. This service is deliberately separate from t
 - `CSLVPN_DATABASE_URL`: PostgreSQL connection URL (required).
 - `CSLVPN_ADMIN_TOKEN`: administrator API secret, at least 32 characters (required).
 - `CSLVPN_PROVISIONER_TOKEN`: separate VPN-host worker API secret, at least 32 characters (required). Store it only on the control-plane host and the dedicated VPN-host agent.
+- VPN-host agent: `CSLVPN_SERVER_URL` (HTTPS API base URL), `CSLVPN_PROVISIONER_TOKEN`, and `CSLVPN_WORKER_ID` are required. Optional `CSLVPN_DNSMASQ_CONFIG` defaults to `/etc/dnsmasq.conf`; `CSLVPN_DHCP_RESERVATIONS_FILE` defaults to `/etc/dnsmasq.d/cslvpn-reservations.conf`. The dnsmasq main configuration must include the reservation file's directory using `conf-dir=`.
 
 Do not expose the service directly to the Internet. Put it behind a TLS-terminating reverse proxy and restrict access to management routes.
 
@@ -43,7 +46,20 @@ Apply migrations in numeric order using the reviewed SQL files in `migrations/`,
 - `POST /api/v1/sessions`: device Bearer credential; expects `protocol` (`softether` or `wireguard`) and `transport` (`udp` or `tcp`). Returns a 90-second session token.
 - `POST /api/v1/heartbeat`: device Bearer credential plus `session_token` in JSON; renews the session lease.
 - `POST /api/v1/sessions/disconnect`: device Bearer credential plus `session_token` in JSON; closes that device's session lease.
-- `POST /api/v1/agent/provisioning/claim`: dedicated provisioner Bearer token plus `worker_id`; leases one provisioning job for 60 seconds, or returns 204 when the queue is empty.
+- `POST /api/v1/agent/provisioning/claim`: dedicated provisioner Bearer token plus `worker_id` and optional `job_type` (`dhcp_reservation` or `softether_account`); leases one matching provisioning job for 60 seconds, or returns 204 when the queue is empty.
 - `POST /api/v1/agent/provisioning/jobs/{id}/complete`: dedicated provisioner Bearer token plus `worker_id`, `success`, and optional `error`; acknowledges the lease and updates device provisioning state.
 
 The API listens on loopback by default. Keep it behind a TLS reverse proxy and do not expose the service directly to the public Internet. Enrollment codes are single-use, expire after the configured period, and are bound to the intended device name. Never embed an enrollment code or administrator token in a distributable client installer.
+
+## VPN-host DHCP worker
+
+Build the worker on Linux x64 with:
+
+```sh
+cd server
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o cslvpn-vpn-agent ./cmd/cslvpn-vpn-agent
+```
+
+Run it as a dedicated system service account with only the privileges required to write the dedicated dnsmasq reservation file and restart dnsmasq (normally through a narrowly scoped sudoers rule). Do not grant the worker unrestricted interactive shell access. Configure the API URL as HTTPS and use a unique worker ID. The agent refuses to start if the dnsmasq main config does not include the reservation directory. The default reservation file is `/etc/dnsmasq.d/cslvpn-reservations.conf`.
+
+The worker intentionally processes only DHCP reservation jobs. SoftEther jobs remain queued until the separate account-provisioning and encrypted credential-delivery flow is implemented. This means successful DHCP reservation alone never makes a device ready.
