@@ -177,3 +177,38 @@ func ValidateAndRestartDNSMasq(ctx context.Context, configPath string) error {
 	}
 	return nil
 }
+
+func RestoreReservationFile(path string, previous []byte, existed bool) error {
+	if !existed {
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("remove failed reservation file: %w", err)
+		}
+		return nil
+	}
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".cslvpn-reservations-rollback-*")
+	if err != nil {
+		return fmt.Errorf("create rollback file: %w", err)
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if err := tmp.Chmod(0640); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(previous); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		return fmt.Errorf("restore previous reservation file: %w", err)
+	}
+	return nil
+}
