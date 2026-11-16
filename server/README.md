@@ -60,6 +60,6 @@ cd server
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o cslvpn-vpn-agent ./cmd/cslvpn-vpn-agent
 ```
 
-Run it as a dedicated system service account with only the privileges required to write the dedicated dnsmasq reservation file and restart dnsmasq (normally through a narrowly scoped sudoers rule). Do not grant the worker unrestricted interactive shell access. Configure the API URL as HTTPS and use a unique worker ID. The agent refuses to start if the dnsmasq main config does not include the reservation directory. The default reservation file is `/etc/dnsmasq.d/cslvpn-reservations.conf`.
+Run it as a dedicated, root-owned systemd service because it must atomically write under `/etc/dnsmasq.d` and restart dnsmasq. Keep the unit non-interactive, restrict writable paths to the dedicated reservation file where practical, protect its environment file (`0600`), and do not expose a local command interface. The worker invokes fixed absolute paths for `dnsmasq` and `systemctl`; it does not invoke a shell. Configure the API URL as HTTPS and use a unique worker ID. The agent refuses to start if the dnsmasq main config does not include the reservation directory. The default reservation file is `/etc/dnsmasq.d/cslvpn-reservations.conf`.
 
 The worker intentionally processes only DHCP reservation jobs. SoftEther jobs remain queued until the separate account-provisioning and encrypted credential-delivery flow is implemented. This means successful DHCP reservation alone never makes a device ready.
