@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated: 2026-11-15
+Updated: 2026-11-16
 
 ## Committed to develop
 
@@ -35,13 +35,16 @@ Updated: 2026-11-15
 - HTTP validation tests for enrollment and credential-gated session routes, deterministic MAC allocation, and provisioning-worker credential isolation.
 - Transactional provisioning outbox for DHCP reservation and SoftEther account setup.
 - Stable per-device locally administered VPN MAC allocation and authenticated device-profile delivery.
-- Dedicated provisioner-worker credential, leased job-claim API, and completion/failure acknowledgement API with audit events.
+- Dedicated provisioner-worker credential, leased job-claim API with an explicit job-type allowlist, and completion/failure acknowledgement API with audit events.
+- First VPN-host agent milestone: Linux worker polls the control plane over HTTPS and claims only DHCP reservation jobs.
+- DHCP reservation worker validates UUID/IP/MAC payloads, limits addresses to the VPN /22 allocation pool, atomically maintains a dedicated dnsmasq include file, validates dnsmasq configuration, restarts dnsmasq, and restores the previous file if applying the new configuration fails.
+- CI now builds and publishes a separate Linux x64 VPN-host agent artifact.
 - Windows Service fails closed until server-side provisioning reports ready.
 
 ## Not implemented yet
 
 - Device re-enrollment/recovery flow that safely preserves the existing credential and address.
-- VPN-host provisioning agent that safely applies dnsmasq DHCP reservations and SoftEther accounts (worker API/outbox are present; execution agent is not yet implemented).
+- SoftEther account provisioning and secure per-device credential delivery (DHCP worker is implemented, but it deliberately leaves SoftEther jobs queued).
 - SoftEther adapter and isolated Virtual Hub provisioning.
 - Native WireGuard adapter and TCP encapsulation adapter.
 - Restricted service/tray IPC.
@@ -64,4 +67,4 @@ Updated: 2026-11-15
 
 ## Build status
 
-The GitHub Actions workflow is committed. A successful workflow run is required before calling these scaffolds build-verified. No production installer or server binary is claimed at this stage.
+The GitHub Actions workflow builds the control-plane server, Linux DHCP provisioning agent, and Windows client. The latest run must complete successfully before calling the new agent build-verified. No production installer or live VPN connection is claimed at this stage.
