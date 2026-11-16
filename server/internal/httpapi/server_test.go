@@ -75,3 +75,19 @@ func TestProvisioningClaimValidatesWorkerIDBeforeDatabaseAccess(t *testing.T) {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, response.Code, response.Body.String())
 	}
 }
+
+func TestProvisioningClaimRejectsUnknownJobTypeBeforeDatabaseAccess(t *testing.T) {
+	const token = "fedcba9876543210fedcba9876543210"
+	handler := New(nil, slog.New(slog.NewTextHandler(io.Discard, nil)),
+		"0123456789abcdef0123456789abcdef", token).Handler()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/agent/provisioning/claim",
+		bytes.NewReader([]byte(`{"worker_id":"vpn-host-01","job_type":"arbitrary_command"}`)))
+	request.Header.Set("Authorization", "Bearer "+token)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, response.Code, response.Body.String())
+	}
+}
