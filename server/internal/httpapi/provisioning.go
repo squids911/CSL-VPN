@@ -35,6 +35,7 @@ func (s *Server) claimProvisioningJob(w http.ResponseWriter, r *http.Request) {
 	}
 	var request struct {
 		WorkerID string `json:"worker_id"`
+		JobType  string `json:"job_type"`
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 4*1024)
 	decoder := json.NewDecoder(r.Body)
@@ -45,7 +46,8 @@ func (s *Server) claimProvisioningJob(w http.ResponseWriter, r *http.Request) {
 	}
 	request.WorkerID = strings.TrimSpace(request.WorkerID)
 	if request.WorkerID == "" || len(request.WorkerID) > 64 ||
-		strings.ContainsAny(request.WorkerID, "\r\n\x00") {
+		strings.ContainsAny(request.WorkerID, "\r\n\x00") ||
+		(request.JobType != "" && request.JobType != "dhcp_reservation" && request.JobType != "softether_account") {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_worker_id"})
 		return
 	}
@@ -55,8 +57,9 @@ func (s *Server) claimProvisioningJob(w http.ResponseWriter, r *http.Request) {
 		WITH candidate AS (
 			SELECT id
 			FROM vpn_provisioning_jobs
-			WHERE status IN ('pending', 'failed')
-			   OR (status = 'processing' AND locked_until < now())
+			WHERE (status IN ('pending', 'failed')
+			   OR (status = 'processing' AND locked_until < now()))
+			  AND ($2 = '' OR job_type = $2)
 			ORDER BY created_at, id
 			FOR UPDATE SKIP LOCKED
 			LIMIT 1
@@ -70,7 +73,7 @@ func (s *Server) claimProvisioningJob(w http.ResponseWriter, r *http.Request) {
 		FROM candidate
 		WHERE j.id = candidate.id
 		RETURNING j.id, j.device_id::text, j.job_type, j.payload, j.attempts
-	`, request.WorkerID).Scan(&job.ID, &job.DeviceID, &job.Type, &job.Payload, &job.Attempt)
+	`, request.WorkerID, request.JobType).Scan(&job.ID, &job.DeviceID, &job.Type, &job.Payload, &job.Attempt)
 	if errors.Is(err, sql.ErrNoRows) {
 		w.WriteHeader(http.StatusNoContent)
 		return
