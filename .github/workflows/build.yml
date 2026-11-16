@@ -43,6 +43,12 @@ jobs:
           path: server/dist/cslvpn-server
           if-no-files-found: error
           retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cslvpn-vpn-agent-linux-x64
+          path: server/dist/cslvpn-vpn-agent
+          if-no-files-found: error
+          retention-days: 30
 
   windows-client:
     runs-on: windows-latest
