@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
+using Xunit;
 
 namespace CSL.Vpn.IntegrationTests;
 
@@ -49,5 +50,5 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         }
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    // DisposeAsync is inherited from WebApplicationFactory and satisfies IAsyncLifetime.
 }
