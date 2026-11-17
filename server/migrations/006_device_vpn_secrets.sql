@@ -1,0 +1,8 @@
+-- Sealed per-device SoftEther credentials. Plaintext never stored.
+CREATE TABLE vpn_device_vpn_secrets (
+    device_id          uuid PRIMARY KEY REFERENCES vpn_devices(id) ON DELETE CASCADE,
+    softether_username text NOT NULL UNIQUE,
+    sealed_password    bytea NOT NULL,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    rotated_at         timestamptz
+);
