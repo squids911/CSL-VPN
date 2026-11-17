@@ -11,11 +11,13 @@ import (
 )
 
 type provisioningJob struct {
-	ID        int64           `json:"id"`
-	DeviceID  string          `json:"device_id"`
-	Type      string          `json:"type"`
-	Payload   json.RawMessage `json:"payload"`
-	Attempt   int             `json:"attempt"`
+	ID                int64           `json:"id"`
+	DeviceID          string          `json:"device_id"`
+	Type              string          `json:"type"`
+	Payload           json.RawMessage `json:"payload"`
+	Attempt           int             `json:"attempt"`
+	SoftEtherUsername string          `json:"softether_username,omitempty"`
+	SoftEtherPassword string          `json:"softether_password,omitempty"`
 }
 
 func (s *Server) authenticateProvisioner(w http.ResponseWriter, r *http.Request) bool {
@@ -82,6 +84,16 @@ func (s *Server) claimProvisioningJob(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error("claim provisioning job", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "provisioning_claim_failed"})
 		return
+	}
+	if job.Type == "softether_account" {
+		username, password, serr := s.ensureSoftEtherSecret(r.Context(), job.DeviceID)
+		if serr != nil {
+			s.logger.Error("prepare SoftEther secret", "job_id", job.ID, "error", serr)
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "softether_secret_unavailable"})
+			return
+		}
+		job.SoftEtherUsername = username
+		job.SoftEtherPassword = password
 	}
 	writeJSON(w, http.StatusOK, job)
 }
