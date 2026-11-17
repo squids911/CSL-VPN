@@ -50,5 +50,8 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         }
     }
 
-    // DisposeAsync is inherited from WebApplicationFactory and satisfies IAsyncLifetime.
+    async Task IAsyncLifetime.DisposeAsync()
+    {
+        await base.DisposeAsync();
+    }
 }
