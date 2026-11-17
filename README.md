@@ -2,7 +2,7 @@
 
 CSL VPN is a centrally managed Ethernet VPN project for Windows clients and remote sites.
 
-> Status: early scaffold. The repository now has a starter Control Plane API, PostgreSQL schema, Ubuntu deployment files, Windows service/tray shells, and CI tests. Device enrollment, IP allocation, authentication/session control, the admin UI, and the VPN data plane are not implemented yet. Do not deploy this as a production VPN.
+> Status: management-plane scaffold. The Control Plane API implements enrollment codes, device registration with transactional address allocation, bearer credentials (hash at rest), single-session heartbeats, revocation, and a 14-day cleanup sweep. The VPN data plane and the admin UI are not implemented yet. Do not deploy this as a production VPN.
 
 ## Initial architecture
 
@@ -17,11 +17,12 @@ CSL VPN is a centrally managed Ethernet VPN project for Windows clients and remo
 
 ## What exists now
 
-- `src/CSL.Vpn.ControlPlane`: API health endpoints (`/health/live`, `/health/ready`).
+- `src/CSL.Vpn.ControlPlane`: API — health checks, one-time enrollment codes, device registration with transactional IP allocation, session heartbeat/disconnect/status, admin device list and revocation (see `docs/api.md`).
 - `db/migrations`: first PostgreSQL schema draft for devices, credentials, enrollment codes, sessions, and the address pool.
 - `deploy`: Compose configuration and an environment template; PostgreSQL is not published on a host port.
 - `src/CSL.Vpn.WindowsService` and `src/CSL.Vpn.WindowsTray`: non-functional UI/service shells. They do not establish a tunnel.
 - `src/CSL.Vpn.Shared` and tests: persistent device-ID helper and unit tests.
+- `tests/CSL.Vpn.ControlPlane.Tests`: token/crypto unit tests.
 - `.github/workflows/ci.yml`: build/test workflow.
 
 ## Network design constraints
@@ -40,7 +41,7 @@ Physical site networks may use overlapping address ranges. They must remain isol
 - Protect management and transport control channels with authenticated encryption.
 - Keep PostgreSQL and the API off the public Internet; expose the API only to the trusted proxy/LAN.
 
-These requirements are not all enforced by the current scaffold. See the implementation roadmap.
+The API enforces the credential/session parts of this list (hashed tokens, single session, revocation, 14-day expiry). The data-plane and transport requirements remain unimplemented. See the implementation roadmap.
 
 ## Deploying the current scaffold
 

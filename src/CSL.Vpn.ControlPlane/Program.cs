@@ -1,3 +1,4 @@
+using CSL.Vpn.ControlPlane;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +12,8 @@ builder.Services.AddSingleton(serviceProvider =>
 
     return NpgsqlDataSource.Create(connectionString);
 });
+
+builder.Services.AddHostedService<CleanupService>();
 
 var app = builder.Build();
 
@@ -34,5 +37,9 @@ app.MapGet("/health/ready", async (NpgsqlDataSource dataSource, CancellationToke
 
     return result;
 });
+
+app.MapEnrollmentEndpoints();
+app.MapSessionEndpoints();
+app.MapAdminEndpoints();
 
 await app.RunAsync();

@@ -4,9 +4,9 @@ This roadmap turns the four requested workstreams into reviewable increments. Th
 
 ## Workstream 1 — Control Plane API and PostgreSQL
 
-Scaffolded: ASP.NET Core health endpoints, PostgreSQL container, and first schema draft.
+Done: ASP.NET Core health endpoints, PostgreSQL container, first schema draft, one-time enrollment codes, transactional IP allocation (FOR UPDATE SKIP LOCKED), opaque bearer credentials (SHA-256 at rest, shown once), single-session heartbeat, revocation, and a 14-day cleanup sweep.
 
-Next: one-time enrollment-code issuance/consumption, device registration, opaque per-device bearer credentials (hash at rest), IPAM transactions, heartbeat, a single-session lease, revocation, and 14-day cleanup. Add migration tooling before making schema changes beyond the first bootstrap migration.
+Next: integration tests against a real database in CI, migration tooling for schema changes beyond the bootstrap migration, and rate limiting on `/enroll`.
 
 ## Workstream 2 — Ubuntu deployment and NPM
 

@@ -32,7 +32,7 @@ cp deploy/.env.example deploy/.env
 openssl rand -hex 32
 ```
 
-Edit `deploy/.env`: replace `POSTGRES_PASSWORD` with the generated random hex value. Do not commit or send this file. The hex format avoids connection-string delimiter characters.
+Edit `deploy/.env`: replace `POSTGRES_PASSWORD` and `ADMIN_API_KEY` with generated random hex values. Do not commit or send this file. The hex format avoids connection-string delimiter characters. `ADMIN_API_KEY` guards the `/admin` surface (enrollment codes, device revocation).
 
 Validate the Compose configuration and start the services:
 
