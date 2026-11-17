@@ -18,9 +18,37 @@ jobs:
         run: dotnet test tests/CSL.Vpn.Shared.Tests/CSL.Vpn.Shared.Tests.csproj --configuration Release
       - name: Test Control Plane
         run: dotnet test tests/CSL.Vpn.ControlPlane.Tests/CSL.Vpn.ControlPlane.Tests.csproj --configuration Release
+      - name: Test Windows client
+        run: dotnet test tests/CSL.Vpn.WindowsService.Tests/CSL.Vpn.WindowsService.Tests.csproj --configuration Release
       - name: Build Control Plane API
         run: dotnet build src/CSL.Vpn.ControlPlane/CSL.Vpn.ControlPlane.csproj --configuration Release
       - name: Build Windows service shell
         run: dotnet build src/CSL.Vpn.WindowsService/CSL.Vpn.WindowsService.csproj --configuration Release
       - name: Build Windows tray shell
         run: dotnet build src/CSL.Vpn.WindowsTray/CSL.Vpn.WindowsTray.csproj --configuration Release
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: cslvpn_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cslvpn_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Integration tests (API + real PostgreSQL)
+        run: dotnet test tests/CSL.Vpn.IntegrationTests/CSL.Vpn.IntegrationTests.csproj --configuration Release
+        env:
+          CSLVPN_TEST_DB: Host=localhost;Port=5432;Database=cslvpn_test;Username=postgres;Password=postgres;Timeout=5;Command Timeout=15

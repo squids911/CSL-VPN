@@ -2,7 +2,7 @@
 
 CSL VPN is a centrally managed Ethernet VPN project for Windows clients and remote sites.
 
-> Status: management-plane scaffold. The Control Plane API implements enrollment codes, device registration with transactional address allocation, bearer credentials (hash at rest), single-session heartbeats, revocation, and a 14-day cleanup sweep. The VPN data plane and the admin UI are not implemented yet. Do not deploy this as a production VPN.
+> Status: management-plane scaffold. The Control Plane API implements enrollment codes, device registration with transactional address allocation, bearer credentials (hash at rest), single-session heartbeats, revocation, and a 14-day cleanup sweep. The Windows service enrolls and heartbeats; the tray shows its status. The VPN data plane and the admin UI are not implemented yet. Do not deploy this as a production VPN.
 
 ## Initial architecture
 
@@ -20,9 +20,10 @@ CSL VPN is a centrally managed Ethernet VPN project for Windows clients and remo
 - `src/CSL.Vpn.ControlPlane`: API — health checks, one-time enrollment codes, device registration with transactional IP allocation, session heartbeat/disconnect/status, admin device list and revocation (see `docs/api.md`).
 - `db/migrations`: first PostgreSQL schema draft for devices, credentials, enrollment codes, sessions, and the address pool.
 - `deploy`: Compose configuration and an environment template; PostgreSQL is not published on a host port.
-- `src/CSL.Vpn.WindowsService` and `src/CSL.Vpn.WindowsTray`: non-functional UI/service shells. They do not establish a tunnel.
-- `src/CSL.Vpn.Shared` and tests: persistent device-ID helper and unit tests.
-- `tests/CSL.Vpn.ControlPlane.Tests`: token/crypto unit tests.
+- `src/CSL.Vpn.WindowsService`: management-plane agent — enrolls with a one-time code, persists identity under ProgramData, heartbeats, mirrors status to a state file. No tunnel yet.
+- `src/CSL.Vpn.WindowsTray`: tray app displaying the agent's state file.
+- `src/CSL.Vpn.Shared`: persistent device-ID helper and shared API contracts.
+- `tests`: unit tests (shared, control plane, client) and API+PostgreSQL integration tests (see CI `integration` job).
 - `.github/workflows/ci.yml`: build/test workflow.
 
 ## Network design constraints

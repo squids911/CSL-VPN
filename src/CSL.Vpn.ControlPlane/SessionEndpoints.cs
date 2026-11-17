@@ -1,4 +1,5 @@
 using CSL.Vpn.ControlPlane.Security;
+using CslVpn.Shared.Contracts;
 using Npgsql;
 
 namespace CSL.Vpn.ControlPlane;
@@ -64,14 +65,8 @@ public static class SessionEndpoints
 
         await transaction.CommitAsync(cancellationToken);
 
-        return Results.Ok(new
-        {
-            sessionId,
-            startedAt,
-            lastHeartbeat,
-            address,
-            status = address is null ? "no_address" : "active",
-        });
+        var status = address is null ? "no_address" : "active";
+        return Results.Ok(new HeartbeatResponse(sessionId, startedAt, lastHeartbeat, address, status));
     }
 
     private static async Task<IResult> DisconnectAsync(
@@ -122,17 +117,15 @@ public static class SessionEndpoints
         var address = await reader.IsDBNullAsync(2, cancellationToken) ? null : reader.GetString(2);
         var sessionActive = reader.GetBoolean(3);
 
-        return Results.Ok(new
-        {
-            deviceId = device.DeviceId,
-            displayName = device.DisplayName,
+        return Results.Ok(new DeviceStatusResponse(
+            device.DeviceId,
+            device.DisplayName,
             enrolledAt,
             lastSeenAt,
             address,
-            sessionActive,
-        });
+            sessionActive));
     }
 
     private static IResult Unauthorized() =>
-        Results.Json(new { error = "unauthorized" }, statusCode: StatusCodes.Status401Unauthorized);
+        Results.Json(new ErrorResponse("unauthorized"), statusCode: StatusCodes.Status401Unauthorized);
 }

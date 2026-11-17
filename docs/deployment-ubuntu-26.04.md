@@ -82,3 +82,27 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml exec -T db \
 ```
 
 Store backups off-host and test restoration before relying on them.
+
+## Hardening (applied 2026-11-17)
+
+- UFW enabled on the API host: default deny incoming, allow outgoing/routed
+  (routed stays open because SoftEther SecureNAT handles VPN client traffic in
+  user mode), explicit allows: 22/tcp (SSH), 443/tcp and 5555/tcp (SoftEther).
+- The Docker-published API port bypasses UFW, so a DOCKER-USER rule restricts
+  10.254.100.252:8088 to NPM (10.254.100.251) only:
+  `iptables -I DOCKER-USER -p tcp -d 10.254.100.252 --dport 8088 ! -s 10.254.100.251 -j DROP`.
+  Persisted via the `csl-api-guard.service` systemd unit (enabled).
+- Recommended NPM hardening (manual, admin UI): in the v.csl.by Proxy Host →
+  Advanced tab, restrict the admin surface to the LAN:
+
+  ```nginx
+  location /admin/ {
+      allow 10.254.100.0/24;
+      deny all;
+      proxy_pass http://10.254.100.252:8088;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+  }
+  ```
