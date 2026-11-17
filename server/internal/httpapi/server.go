@@ -4,17 +4,18 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"strings"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
 
 type Server struct {
-	db              *sql.DB
-	logger          *slog.Logger
+	db               *sql.DB
+	logger           *slog.Logger
 	adminToken       string
 	provisionerToken string
+	secretsKey       []byte
 	mux              *http.ServeMux
 }
 
@@ -41,6 +42,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/heartbeat", s.heartbeat)
 	s.mux.HandleFunc("POST /api/v1/sessions/disconnect", s.disconnectSession)
 	s.mux.HandleFunc("GET /api/v1/device", s.getDeviceProfile)
+	s.mux.HandleFunc("GET /api/v1/device/vpn-credentials", s.getDeviceVPNCredentials)
 	s.mux.HandleFunc("POST /api/v1/admin/enrollment-tokens", s.createEnrollmentToken)
 	s.mux.HandleFunc("POST /api/v1/agent/provisioning/claim", s.claimProvisioningJob)
 	s.mux.HandleFunc("POST /api/v1/agent/provisioning/jobs/{id}/complete", s.completeProvisioningJob)
@@ -68,9 +70,9 @@ func (s *Server) version(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) enroll(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		BootstrapToken string `json:"bootstrap_token"`
-		DeviceName     string `json:"device_name"`
-		Fingerprint    string `json:"device_fingerprint"`
+		BootstrapToken   string `json:"bootstrap_token"`
+		DeviceName       string `json:"device_name"`
+		Fingerprint      string `json:"device_fingerprint"`
 		DeviceCredential string `json:"device_credential"`
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8*1024)
