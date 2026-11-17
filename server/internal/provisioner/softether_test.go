@@ -1,7 +1,7 @@
 package provisioner
 
 import (
-	"encoding/json"
+	"encoding/json"`n`t"runtime"
 	"os"
 	"path/filepath"
 	"testing"
@@ -45,6 +45,9 @@ func TestValidateSoftEtherCredentials(t *testing.T) {
 }
 
 func TestLoadVPNCmdPasswordFilePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix permission bits not enforced on Windows")
+	}
 	dir := t.TempDir()
 	bin := filepath.Join(dir, "vpncmd")
 	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755); err != nil {
