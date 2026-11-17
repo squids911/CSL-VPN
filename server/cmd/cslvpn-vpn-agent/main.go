@@ -19,19 +19,24 @@ import (
 )
 
 type config struct {
-	apiURL          string
-	token           string
-	workerID        string
-	dnsmasqConfig   string
-	reservationFile string
+	apiURL           string
+	token            string
+	workerID         string
+	dnsmasqConfig    string
+	reservationFile  string
+	jobTypes         []string
+	vpncmd           provisioner.VPNCmd
+	softetherEnabled bool
 }
 
 type job struct {
-	ID      int64           `json:"id"`
-	DeviceID string         `json:"device_id"`
-	Type    string          `json:"type"`
-	Payload json.RawMessage `json:"payload"`
-	Attempt int             `json:"attempt"`
+	ID                int64           `json:"id"`
+	DeviceID          string          `json:"device_id"`
+	Type              string          `json:"type"`
+	Payload           json.RawMessage `json:"payload"`
+	Attempt           int             `json:"attempt"`
+	SoftEtherUsername string          `json:"softether_username"`
+	SoftEtherPassword string          `json:"softether_password"`
 }
 
 type agent struct {
@@ -47,6 +52,7 @@ func loadConfig() (config, error) {
 		workerID:        os.Getenv("CSLVPN_WORKER_ID"),
 		dnsmasqConfig:   env("CSLVPN_DNSMASQ_CONFIG", "/etc/dnsmasq.conf"),
 		reservationFile: env("CSLVPN_DHCP_RESERVATIONS_FILE", "/etc/dnsmasq.d/cslvpn-reservations.conf"),
+		jobTypes:        []string{"dhcp_reservation"},
 	}
 	if cfg.apiURL == "" || cfg.token == "" || cfg.workerID == "" {
 		return config{}, errors.New("CSLVPN_SERVER_URL, CSLVPN_PROVISIONER_TOKEN and CSLVPN_WORKER_ID are required")
@@ -59,6 +65,20 @@ func loadConfig() (config, error) {
 	}
 	if err := provisioner.ValidateDNSMasqInclude(cfg.dnsmasqConfig, cfg.reservationFile); err != nil {
 		return config{}, err
+	}
+	if vpncmdPath := os.Getenv("CSLVPN_SOFTETHER_VPNCMD"); vpncmdPath != "" {
+		vc, err := provisioner.LoadVPNCmd(
+			vpncmdPath,
+			env("CSLVPN_SOFTETHER_SERVER", "127.0.0.1:443"),
+			env("CSLVPN_SOFTETHER_HUB", "CSL"),
+			env("CSLVPN_SOFTETHER_ADMIN_PASSWORD_FILE", "/etc/cslvpn/softether-hub-admin.password"),
+		)
+		if err != nil {
+			return config{}, err
+		}
+		cfg.vpncmd = vc
+		cfg.softetherEnabled = true
+		cfg.jobTypes = append(cfg.jobTypes, "softether_account")
 	}
 	return cfg, nil
 }
@@ -115,16 +135,24 @@ func (a *agent) complete(ctx context.Context, id int64, success bool, operationE
 	}
 	_, err := a.request(ctx, http.MethodPost, fmt.Sprintf("/api/v1/agent/provisioning/jobs/%d/complete", id), map[string]any{
 		"worker_id": a.cfg.workerID,
-		"success": success,
-		"error": message,
+		"success":   success,
+		"error":     message,
 	}, nil)
 	return err
 }
 
 func (a *agent) process(ctx context.Context, item job) error {
-	if item.Type != "dhcp_reservation" {
+	switch item.Type {
+	case "dhcp_reservation":
+		return a.processDHCP(ctx, item)
+	case "softether_account":
+		return a.processSoftEther(ctx, item)
+	default:
 		return fmt.Errorf("unsupported job type %q", item.Type)
 	}
+}
+
+func (a *agent) processDHCP(ctx context.Context, item job) error {
 	reservation, err := provisioner.DecodeDHCPReservation(item.Payload)
 	if err != nil {
 		return err
@@ -154,12 +182,35 @@ func (a *agent) process(ctx context.Context, item job) error {
 	return nil
 }
 
+func (a *agent) processSoftEther(ctx context.Context, item job) error {
+	if !a.cfg.softetherEnabled {
+		return errors.New("SoftEther provisioning is not enabled on this worker")
+	}
+	account, err := provisioner.DecodeSoftEtherAccount(item.Payload)
+	if err != nil {
+		return err
+	}
+	if account.DeviceID != item.DeviceID {
+		return errors.New("job device_id does not match payload")
+	}
+	expected := provisioner.SoftEtherUsername(item.DeviceID)
+	if item.SoftEtherUsername != expected {
+		return errors.New("control plane returned an unexpected SoftEther username")
+	}
+	if err := provisioner.ValidateSoftEtherCredentials(item.SoftEtherUsername, item.SoftEtherPassword); err != nil {
+		return err
+	}
+	return a.cfg.vpncmd.EnsureAccount(ctx, item.SoftEtherUsername, item.SoftEtherPassword)
+}
+
 func (a *agent) run(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	for {
-		if err := a.poll(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			a.logger.Error("provisioning poll failed", "error", err)
+		for _, jobType := range a.cfg.jobTypes {
+			if err := a.poll(ctx, jobType); err != nil && !errors.Is(err, context.Canceled) {
+				a.logger.Error("provisioning poll failed", "job_type", jobType, "error", err)
+			}
 		}
 		select {
 		case <-ctx.Done():
@@ -169,11 +220,11 @@ func (a *agent) run(ctx context.Context) {
 	}
 }
 
-func (a *agent) poll(ctx context.Context) error {
+func (a *agent) poll(ctx context.Context, jobType string) error {
 	var item job
 	status, err := a.request(ctx, http.MethodPost, "/api/v1/agent/provisioning/claim", map[string]string{
 		"worker_id": a.cfg.workerID,
-		"job_type": "dhcp_reservation",
+		"job_type":  jobType,
 	}, &item)
 	if err != nil {
 		return err
@@ -181,16 +232,16 @@ func (a *agent) poll(ctx context.Context) error {
 	if status == http.StatusNoContent {
 		return nil
 	}
-	if item.ID < 1 || item.Type != "dhcp_reservation" {
-		return errors.New("control plane returned an invalid DHCP job")
+	if item.ID < 1 || item.Type != jobType {
+		return errors.New("control plane returned an invalid provisioning job")
 	}
 	opCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	operationErr := a.process(opCtx, item)
 	if operationErr != nil {
-		a.logger.Error("DHCP reservation failed", "job_id", item.ID, "attempt", item.Attempt, "error", operationErr)
+		a.logger.Error("provisioning failed", "job_type", jobType, "job_id", item.ID, "attempt", item.Attempt, "error", operationErr)
 	} else {
-		a.logger.Info("DHCP reservation applied", "job_id", item.ID, "device_id", item.DeviceID)
+		a.logger.Info("provisioning applied", "job_type", jobType, "job_id", item.ID, "device_id", item.DeviceID)
 	}
 	if err := a.complete(opCtx, item.ID, operationErr == nil, operationErr); err != nil {
 		return fmt.Errorf("acknowledge job %d: %w", item.ID, err)
@@ -214,6 +265,6 @@ func main() {
 		},
 	}
 	worker := &agent{cfg: cfg, client: client, logger: logger}
-	logger.Info("CSL VPN DHCP provisioning agent started", "worker_id", cfg.workerID)
+	logger.Info("CSL VPN provisioning agent started", "worker_id", cfg.workerID, "job_types", cfg.jobTypes)
 	worker.run(ctx)
 }
