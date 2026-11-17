@@ -1,4 +1,5 @@
 using CSL.Vpn.ControlPlane.Security;
+using CslVpn.Shared.Contracts;
 using Npgsql;
 
 namespace CSL.Vpn.ControlPlane;
@@ -144,13 +145,7 @@ public static class EnrollmentEndpoints
 
         await transaction.CommitAsync(cancellationToken);
 
-        return Results.Ok(new
-        {
-            deviceId,
-            displayName,
-            address,
-            credential,
-        });
+        return Results.Ok(new EnrollResponse(deviceId, displayName, address, credential));
     }
 
     private static async Task InsertDeviceAsync(
@@ -203,7 +198,5 @@ public static class EnrollmentEndpoints
     }
 
     private static IResult Error(string code, int statusCode = StatusCodes.Status400BadRequest) =>
-        Results.Json(new { error = code }, statusCode: statusCode);
-
-    public sealed record EnrollRequest(string? Code, string? DisplayName, Guid? DeviceId);
+        Results.Json(new ErrorResponse(code), statusCode: statusCode);
 }

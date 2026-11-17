@@ -43,3 +43,9 @@ app.MapSessionEndpoints();
 app.MapAdminEndpoints();
 
 await app.RunAsync();
+
+// Exposes the implicit Program class so WebApplicationFactory<Program> can host
+// the API in the integration-test project.
+public partial class Program
+{
+}

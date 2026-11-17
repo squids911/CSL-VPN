@@ -16,15 +16,15 @@ Next: provision on Ubuntu Server 26.04, verify firewall rules allow TCP 8088 onl
 
 ## Workstream 3 — Windows client
 
-Scaffolded: a service shell and a tray shell, both explicitly non-functional for VPN connectivity.
+Done (management plane): the service enrolls with a one-time code, persists the device identity under ProgramData, heartbeats the control plane, forgets rejected credentials, and mirrors status to a state file; the tray app displays it.
 
-Next: select and prototype an L2-capable adapter/transport, define secure device enrollment and local identity persistence, then add connection lifecycle, status, upgrades, and recovery. A normal TUN adapter is not automatically equivalent to the required Ethernet/L2 VPN.
+Next: select and prototype an L2-capable adapter/transport, then add the tunnel lifecycle on top of the management loop. A normal TUN adapter is not automatically equivalent to the required Ethernet/L2 VPN.
 
 ## Workstream 4 — Tests, CI, and operations documentation
 
-Scaffolded: shared device-ID tests, a .NET CI workflow, and an Ubuntu deployment runbook.
+Done: shared device-ID tests, token/crypto unit tests, client HTTP tests, API+PostgreSQL integration tests running against a real database in CI, and an Ubuntu deployment runbook.
 
-Next: API/database integration tests, security tests, backup/restore checks, packaging/signing, and operator/admin workflows.
+Next: backup/restore checks, packaging/signing, load/rate-limit tests, and operator/admin workflows.
 
 ## Explicitly out of scope for this scaffold
 
