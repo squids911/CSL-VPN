@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'feature/*']
   pull_request:
     branches: [main, develop]
 
@@ -16,6 +16,8 @@ jobs:
           dotnet-version: 10.0.x
       - name: Test shared code
         run: dotnet test tests/CSL.Vpn.Shared.Tests/CSL.Vpn.Shared.Tests.csproj --configuration Release
+      - name: Test Control Plane
+        run: dotnet test tests/CSL.Vpn.ControlPlane.Tests/CSL.Vpn.ControlPlane.Tests.csproj --configuration Release
       - name: Build Control Plane API
         run: dotnet build src/CSL.Vpn.ControlPlane/CSL.Vpn.ControlPlane.csproj --configuration Release
       - name: Build Windows service shell
