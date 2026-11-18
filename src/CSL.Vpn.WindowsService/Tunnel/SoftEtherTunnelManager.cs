@@ -48,7 +48,7 @@ public sealed class SoftEtherTunnelManager(
     public string SubnetMask => configuration["Tunnel:SubnetMask"] ?? "255.255.252.0";
 
     public string SoftEtherDir =>
-        configuration["Tunnel:SoftEtherDir"] ?? @"C:\Program Files\CSL VPN\softether";
+        configuration["Tunnel:SoftEtherDir"] ?? @"C:\Program Files\SoftEther VPN Client";
 
     private string VpnCmdPath => Path.Combine(SoftEtherDir, "vpncmd.exe");
 
