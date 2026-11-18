@@ -29,11 +29,14 @@ services:
       ASPNETCORE_HTTP_PORTS: '8080'
       ConnectionStrings__Postgres: 'Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Timeout=5;Command Timeout=10'
       AdminApiKey: ${ADMIN_API_KEY:?Set ADMIN_API_KEY in deploy/.env}
+      Radius__SharedSecret: ${RADIUS_SHARED_SECRET:?Set RADIUS_SHARED_SECRET in deploy/.env}
     depends_on:
       db:
         condition: service_healthy
     ports:
       - '${API_BIND_ADDRESS:-10.254.100.252}:${API_PORT:-8088}:8080'
+      # RADIUS auth facade: SoftEther runs on this host, so loopback only.
+      - '127.0.0.1:${RADIUS_PORT:-1812}:1812/udp'
     security_opt:
       - no-new-privileges:true
     cap_drop:

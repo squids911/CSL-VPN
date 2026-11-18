@@ -83,6 +83,52 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml exec -T db \
 
 Store backups off-host and test restoration before relying on them.
 
+## SoftEther data-plane wiring (applied 2026-11-18)
+
+The hub "CSL" authenticates VPN logins against the control plane via RADIUS
+(the API embeds a PAP facade, published on `127.0.0.1:1812/udp` only).
+`vpncmd` is not installed on the host, so the hub was configured by editing
+`/usr/vpnserver/vpn_server.config` while the service was stopped:
+
+1. `systemctl stop vpnserver` and back up `vpn_server.config`.
+2. In `declare CSL` → hub options, add:
+   `string RadiusServerName 127.0.0.1` and
+   `byte RadiusSecret <base64 of RADIUS_SHARED_SECRET>`.
+   (`RadiusServerPort 1812` is already the default in the config.)
+3. In the same hub's `declare UserList`, add the wildcard user (any unknown
+   username falls through to RADIUS per SoftEther docs):
+
+   ```
+   declare *
+   {
+       uint AuthType 4
+       uint64 CreatedTime <ms epoch>
+       uint64 ExpireTime 0
+       uint64 LastLoginTime 0
+       string Note Control-plane devices (RADIUS)
+       uint NumLogin 0
+       string RealName $
+       uint64 UpdatedTime <ms epoch>
+       wstring AuthRadiusUsername $
+   }
+   ```
+
+4. `systemctl start vpnserver`, then verify with a real device credential:
+   `radtest <device-guid> <credential> 127.0.0.1 0 $RADIUS_SHARED_SECRET`
+   must return Access-Accept, and a revoked device must get Access-Reject.
+
+SecureNAT stays disabled: the control plane owns 10.255.0.0/22 and clients
+assign their addresses statically. The host masquerades pool traffic towards
+non-LAN destinations (persisted by `csl-vpn-nat.service`):
+
+```
+iptables -t nat -A POSTROUTING -s 10.255.0.0/22 ! -d 10.254.100.0/24 -j MASQUERADE
+```
+
+LAN hosts need a return route for `10.255.0.0/22 via 10.254.100.252` on the
+site router if VPN clients must be reachable from the LAN by their real
+addresses; otherwise LAN-bound traffic can be masqueraded too.
+
 ## Hardening (applied 2026-11-17)
 
 - UFW enabled on the API host: default deny incoming, allow outgoing/routed

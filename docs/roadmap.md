@@ -18,7 +18,14 @@ Next: provision on Ubuntu Server 26.04, verify firewall rules allow TCP 8088 onl
 
 Done (management plane): the service enrolls with a one-time code, persists the device identity under ProgramData, heartbeats the control plane, forgets rejected credentials, and mirrors status to a state file; the tray app displays it.
 
-Next: select and prototype an L2-capable adapter/transport, then add the tunnel lifecycle on top of the management loop. A normal TUN adapter is not automatically equivalent to the required Ethernet/L2 VPN.
+Prototype (data plane, behind `Tunnel:Enabled`): the service drives the
+bundled SoftEther VPN Client — virtual NIC + one account per device, RADIUS
+login with the device GUID and credential, static address from the control
+plane. Not yet validated on real hardware.
+
+Next: validate the data-plane prototype (SoftEther client orchestration,
+RADIUS auth) on real hardware: MTU, reconnects, adapter lifecycle, address
+reconciliation.
 
 ## Workstream 4 — Tests, CI, and operations documentation
 

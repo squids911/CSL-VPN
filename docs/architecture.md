@@ -14,6 +14,35 @@ The public 443 forwarding currently serves SoftEther. Certificate issuance via H
 
 ## Data plane
 
-The stated requirement is Ethernet/L2 with UDP preferred and TCP fallback. This scaffold does not select a transport or adapter and does not carry VPN traffic. A prototype must validate MTU, framing, encryption/authentication, replay protection, key rotation, reconnects, and Windows adapter lifecycle before production claims.
+The data plane is SoftEther VPN end to end: the existing server (hub "CSL",
+TCP 5555) and the SoftEther VPN Client bundled with the Windows agent. The
+SoftEther protocol gives Ethernet/L2 with built-in NAT traversal; the
+management agent drives the bundled client (vpncmd) and owns the IP
+configuration.
 
-Overlapping physical site subnets must not be bridged blindly. Site-aware routing/translation and isolation require a separate design and threat-model review.
+Address ownership: SecureNAT is disabled on the hub, so nothing hands out
+DHCP leases. The control plane owns the address pool (10.255.0.0/22, gateway
+10.255.0.1 excluded) and the client statically assigns its allocated address
+to the virtual adapter. The hub is locally bridged to the host tap
+(`tap_tap_csl`, 10.255.0.1/22); the host routes and masquerades pool traffic
+towards non-LAN destinations.
+
+Authentication: the hub has a wildcard user "*" with RADIUS auth. The API
+embeds a minimal RADIUS PAP facade (RFC 2865, UDP 1812 published on
+127.0.0.1 only) that accepts a login only when User-Name is a device GUID and
+User-Password matches a non-revoked credential of that non-revoked device.
+SoftEther hashes the password with MD5 for transport, but only over loopback;
+the credential itself is a high-entropy token. Revocation takes effect on the
+next (re)connect; existing sessions end when the device's control-plane
+credential is forgotten (the agent disconnects on 401).
+
+Known gaps, to close before production traffic claims:
+
+- No source-address enforcement on the tap: a malicious client can use an
+  address other than its assigned one. ebtables/iptables anti-spoofing rules
+  generated from the address pool are the planned mitigation.
+- MTU/framing, reconnect storms, and adapter lifecycle are validated only in
+  unit tests; the client tunnel manager still needs a real-hardware soak.
+- Overlapping physical site subnets must not be bridged blindly. Site-aware
+  routing/translation and isolation require a separate design and
+  threat-model review.

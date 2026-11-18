@@ -1,8 +1,9 @@
 # Windows client notes
 
-The Windows client is currently a management-plane agent: it enrolls the
-device and keeps a session with the control plane. It does NOT establish a
-VPN tunnel yet — the data plane is a separate, still-unimplemented workstream.
+The client is a management-plane agent plus an experimental data plane
+(behind `Tunnel:Enabled`, default off until validated on hardware): the
+service enrolls the device, keeps a session with the control plane, and —
+when enabled — brings up the SoftEther L2 tunnel with the assigned address.
 
 ## Components
 
@@ -23,7 +24,30 @@ VPN tunnel yet — the data plane is a separate, still-unimplemented workstream.
    refreshing its single active session. A rejected credential (401) is
    forgotten; the agent then waits for a new enrollment code.
 5. Status is mirrored to `C:\ProgramData\CSL VPN\state.json`, which the tray
-   app displays.
+   app displays (including a `tunnel` field once the data plane is enabled).
+
+## Data plane (experimental)
+
+With `Tunnel:Enabled = true` in `appsettings.json`, after each successful
+heartbeat the service ensures the SoftEther tunnel is up:
+
+1. Starts the SoftEther VPN Client service (`SEVPNCLIENT`) — the bundled
+   client is expected under `Tunnel:SoftEtherDir`
+   (default `C:\Program Files\CSL VPN\softether`).
+2. Creates virtual NIC `CSLVPN` and connection account `CSLVPN`
+   (`v.csl.by:5555`, hub `CSL`) if missing.
+3. Sets the account password to the device credential (`/TYPE:radius`) — the
+   hub authenticates it via the control-plane RADIUS facade. Username is the
+   device GUID.
+4. Connects, waits for the link, then sets the control-plane-assigned address
+   statically (`netsh`, gateway 10.255.0.1, mask 255.255.252.0). The hub has
+   no DHCP; the control plane owns the pool.
+5. Re-applies only when the device/credential/address changes or the link
+   drops. On credential rejection (401) and on shutdown the tunnel is torn
+   down.
+
+Credential rotation (re-enrollment) is picked up automatically: the next
+tick detects the changed credential and re-provisions the account.
 
 ## Operator workflow
 

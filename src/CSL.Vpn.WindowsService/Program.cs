@@ -16,6 +16,7 @@ builder.Services.AddHttpClient<ControlPlaneClient>(client =>
 
 builder.Services.AddSingleton<ClientIdentityStore>();
 builder.Services.AddSingleton<ClientState>();
+builder.Services.AddSingleton<CSL.Vpn.WindowsService.Tunnel.SoftEtherTunnelManager>();
 builder.Services.AddHostedService<Worker>();
 
 await builder.Build().RunAsync();
