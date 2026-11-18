@@ -17,6 +17,13 @@ builder.Services.AddSingleton(serviceProvider =>
 
 builder.Services.AddHostedService<CleanupService>();
 
+// RADIUS facade for the VPN data plane: SoftEther delegates authentication
+// to this service (wildcard "*" user). Enabled only when Radius:SharedSecret
+// is configured; binds UDP inside the container and is published on loopback.
+builder.Services.AddSingleton<CSL.Vpn.ControlPlane.Security.RadiusServer>();
+builder.Services.AddHostedService(serviceProvider =>
+    serviceProvider.GetRequiredService<CSL.Vpn.ControlPlane.Security.RadiusServer>());
+
 // Brute-force protection. The API sits behind Nginx Proxy Manager, so the
 // client partition key is the first X-Forwarded-For hop, falling back to the
 // direct peer address. Limits are deliberately generous for legitimate use:

@@ -14,6 +14,8 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
     public const string AdminKey = "integration-test-admin-key";
 
+    public const string RadiusSecret = "integration-test-radius-secret";
+
     private const string DefaultConnectionString =
         "Host=localhost;Port=5432;Database=cslvpn_test;Username=postgres;Password=postgres;Timeout=5;Command Timeout=15";
 
@@ -28,6 +30,8 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             {
                 ["ConnectionStrings:Postgres"] = ConnectionString,
                 ["AdminApiKey"] = AdminKey,
+                ["Radius:SharedSecret"] = RadiusSecret,
+                ["Radius:Port"] = "0",
             });
         });
     }

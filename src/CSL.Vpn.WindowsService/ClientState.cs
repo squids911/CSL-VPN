@@ -16,6 +16,14 @@ public sealed class ClientState
 
     public DateTimeOffset? LastHeartbeatUtc { get; private set; }
 
+    /// <summary>Data-plane state: "up", "down", "error", or null when the tunnel is disabled.</summary>
+    public string? Tunnel { get; private set; }
+
+    public void SetTunnel(string? tunnel)
+    {
+        Tunnel = tunnel;
+    }
+
     public void Update(
         string status,
         string? address = null,
@@ -40,5 +48,6 @@ public sealed class ClientState
         sessionId = SessionId,
         message = Message,
         lastHeartbeatUtc = LastHeartbeatUtc,
+        tunnel = Tunnel,
     };
 }

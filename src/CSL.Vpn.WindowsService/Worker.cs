@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CSL.Vpn.WindowsService.Tunnel;
 
 namespace CSL.Vpn.WindowsService;
 
@@ -12,7 +13,8 @@ public sealed class Worker(
     IConfiguration configuration,
     ControlPlaneClient client,
     ClientIdentityStore identityStore,
-    ClientState state) : BackgroundService
+    ClientState state,
+    SoftEtherTunnelManager tunnel) : BackgroundService
 {
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(15);
 
@@ -66,6 +68,20 @@ public sealed class Worker(
         {
             state.Update("connected", heartbeat.Value.Address, heartbeat.Value.SessionId, heartbeat: true);
             PersistState();
+
+            if (tunnel.Enabled)
+            {
+                if (heartbeat.Value.Address is { } address)
+                {
+                    await EnsureTunnelAsync(identity, address, cancellationToken);
+                }
+                else
+                {
+                    state.SetTunnel("down");
+                    PersistState();
+                }
+            }
+
             return true;
         }
 
@@ -73,6 +89,8 @@ public sealed class Worker(
         {
             logger.LogWarning(
                 "The control plane rejected the device credential; forgetting it and waiting for a new enrollment code.");
+            await tunnel.DisconnectAsync(cancellationToken);
+            state.SetTunnel(tunnel.Enabled ? "down" : null);
             identityStore.Delete();
             state.Update("credential_rejected", message: heartbeat.Error);
             PersistState();
@@ -172,10 +190,28 @@ public sealed class Worker(
         }
     }
 
+    private async Task EnsureTunnelAsync(ClientIdentity identity, string address, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var up = await tunnel.EnsureConnectedAsync(identity.DeviceId, identity.Credential, address, cancellationToken);
+            state.SetTunnel(up ? "up" : "down");
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "Tunnel bring-up failed.");
+            state.SetTunnel("error");
+        }
+
+        PersistState();
+    }
+
     private async Task TryDisconnectAsync()
     {
         try
         {
+            await tunnel.DisconnectAsync(CancellationToken.None);
+
             var identity = identityStore.TryLoad();
             if (identity is not null)
             {
