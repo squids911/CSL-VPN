@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using CSL.Vpn.ControlPlane;
+using CSL.Vpn.ControlPlane.AdminUi;
 using CslVpn.Shared.Contracts;
 using Npgsql;
 
@@ -53,6 +54,14 @@ builder.Services.AddRateLimiter(options =>
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
         }));
+    options.AddPolicy("adminui", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        ClientPartitionKey(httpContext),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
 });
 
 var app = builder.Build();
@@ -103,6 +112,7 @@ app.MapGet("/health/ready", async (NpgsqlDataSource dataSource, CancellationToke
 app.MapEnrollmentEndpoints();
 app.MapSessionEndpoints();
 app.MapAdminEndpoints();
+app.MapAdminUiEndpoints();
 
 await app.RunAsync();
 

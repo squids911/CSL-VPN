@@ -60,6 +60,16 @@ revocation timestamps.
 Revokes a device: kills credentials and sessions and returns its address to
 the pool. Idempotent (`already_revoked` on repeat).
 
+## Operator UI (`/admin/ui`)
+
+Server-rendered, no JavaScript: sign in with the admin key (stateless
+HMAC-signed cookie, 12 h, HttpOnly/Secure/SameSite=Strict), create enrollment
+codes (raw code shown once on the resulting page), list devices and codes,
+revoke devices. Every form carries a session-bound CSRF token; login is
+rate-limited (10/min per source IP); responses send a strict CSP
+(`default-src 'none'`), `X-Frame-Options: DENY`, `no-store`. Restrict
+`/admin/` to trusted networks at NPM (see the deployment runbook).
+
 ## Background cleanup
 
 `CleanupService` sweeps hourly: devices with no activity for 14 days are
