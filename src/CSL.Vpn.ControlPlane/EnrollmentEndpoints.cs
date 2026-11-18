@@ -14,7 +14,7 @@ public static class EnrollmentEndpoints
 {
     public static void MapEnrollmentEndpoints(this WebApplication app)
     {
-        app.MapPost("/enroll", EnrollAsync);
+        app.MapPost("/enroll", EnrollAsync).RequireRateLimiting("enrollment");
     }
 
     private static async Task<IResult> EnrollAsync(

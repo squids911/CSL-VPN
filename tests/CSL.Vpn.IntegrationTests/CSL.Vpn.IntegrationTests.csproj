@@ -20,7 +20,7 @@
     <ProjectReference Include="../../src/CSL.Vpn.ControlPlane/CSL.Vpn.ControlPlane.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="../../db/migrations/0001_initial.sql" Link="0001_initial.sql">
+    <Content Include="../../db/migrations/*.sql" LinkBase="">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

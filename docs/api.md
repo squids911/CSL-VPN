@@ -18,11 +18,13 @@ Request:
 
 Response `200`:
 ```json
-{ "deviceId": "…", "displayName": "…", "address": "10.255.0.1", "credential": "<bearer token, shown once>" }
+{ "deviceId": "…", "displayName": "…", "address": "10.255.0.2", "credential": "<bearer token, shown once>" }
 ```
 
 Errors: `invalid_code`, `code_consumed`, `code_expired`, `device_revoked` (403),
-`invalid_display_name`, `invalid_device_id`, `pool_exhausted` (503).
+`invalid_display_name`, `invalid_device_id`, `pool_exhausted` (503),
+`rate_limited` (429, per-source-IP limit: 30 enrollments/minute,
+120 session requests/minute; partitioned by the first `X-Forwarded-For` hop).
 
 If `deviceId` matches an existing active device, enrollment is a re-issue:
 the device keeps its address, previous credentials and sessions are revoked,

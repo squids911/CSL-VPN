@@ -1,4 +1,6 @@
+using System.Threading.RateLimiting;
 using CSL.Vpn.ControlPlane;
+using CslVpn.Shared.Contracts;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,7 +17,55 @@ builder.Services.AddSingleton(serviceProvider =>
 
 builder.Services.AddHostedService<CleanupService>();
 
+// Brute-force protection. The API sits behind Nginx Proxy Manager, so the
+// client partition key is the first X-Forwarded-For hop, falling back to the
+// direct peer address. Limits are deliberately generous for legitimate use:
+// a device enrolls once and heartbeats every 60 seconds.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+        return new ValueTask(context.HttpContext.Response.WriteAsJsonAsync(
+            new ErrorResponse("rate_limited"), cancellationToken));
+    };
+    options.AddPolicy("enrollment", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        ClientPartitionKey(httpContext),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
+    options.AddPolicy("session", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        ClientPartitionKey(httpContext),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 120,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
+});
+
 var app = builder.Build();
+
+app.UseRateLimiter();
+
+static string ClientPartitionKey(HttpContext context)
+{
+    var forwardedFor = context.Request.Headers["X-Forwarded-For"].ToString();
+    if (!string.IsNullOrWhiteSpace(forwardedFor))
+    {
+        var firstHop = forwardedFor.Split(',', StringSplitOptions.TrimEntries)[0];
+        if (firstHop.Length > 0)
+        {
+            return firstHop;
+        }
+    }
+
+    return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+}
 
 // Liveness: the API process is running. No dependencies are touched.
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }));
