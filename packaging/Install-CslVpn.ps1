@@ -53,7 +53,9 @@ New-Item -ItemType Directory -Force $dataDir | Out-Null
 $acl = Get-Acl $dataDir
 $acl.SetAccessRuleProtection($true, $false)
 foreach ($rule in @($acl.Access)) { $acl.RemoveAccessRule($rule) | Out-Null }
-foreach ($identity in 'NT AUTHORITY\SYSTEM', 'BUILTIN\Administrators') {
+# Well-known SIDs, locale-independent (SYSTEM, Administrators):
+foreach ($sid in 'S-1-5-18', 'S-1-5-32-544') {
+    $identity = New-Object System.Security.Principal.SecurityIdentifier($sid)
     $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
         $identity, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')))
 }

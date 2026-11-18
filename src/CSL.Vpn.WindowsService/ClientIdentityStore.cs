@@ -1,4 +1,5 @@
 using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text.Json;
 
 namespace CSL.Vpn.WindowsService;
@@ -105,10 +106,14 @@ public sealed class ClientIdentityStore(ILogger<ClientIdentityStore> logger, ICo
             var fileInfo = new FileInfo(path);
             var security = fileInfo.GetAccessControl();
             security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            // Well-known SIDs: account names are localized (e.g. "Администраторы"
+            // on Russian Windows) and would fail to translate.
             security.ResetAccessRule(new FileSystemAccessRule(
-                "SYSTEM", FileSystemRights.FullControl, AccessControlType.Allow));
+                new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
+                FileSystemRights.FullControl, AccessControlType.Allow));
             security.AddAccessRule(new FileSystemAccessRule(
-                "Administrators", FileSystemRights.FullControl, AccessControlType.Allow));
+                new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
+                FileSystemRights.FullControl, AccessControlType.Allow));
             fileInfo.SetAccessControl(security);
         }
         catch (Exception exception)
