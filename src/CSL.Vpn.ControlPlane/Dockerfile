@@ -7,6 +7,8 @@ RUN dotnet restore src/CSL.Vpn.ControlPlane/CSL.Vpn.ControlPlane.csproj
 
 COPY src/CSL.Vpn.Shared/ src/CSL.Vpn.Shared/
 COPY src/CSL.Vpn.ControlPlane/ src/CSL.Vpn.ControlPlane/
+# Migrations are embedded into the assembly (MigrationRunner applies them at startup).
+COPY db/migrations/ db/migrations/
 RUN dotnet publish src/CSL.Vpn.ControlPlane/CSL.Vpn.ControlPlane.csproj --configuration Release --output /out --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
