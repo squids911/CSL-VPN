@@ -34,8 +34,13 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        var schema = await File.ReadAllTextAsync(
-            Path.Combine(AppContext.BaseDirectory, "0001_initial.sql"));
+        var migrations = Directory.GetFiles(AppContext.BaseDirectory, "*.sql")
+            .OrderBy(Path.GetFileName, StringComparer.Ordinal)
+            .ToArray();
+        if (migrations.Length == 0)
+        {
+            throw new InvalidOperationException("No database migrations found in the test output directory.");
+        }
 
         await using var dataSource = NpgsqlDataSource.Create(ConnectionString);
 
@@ -44,8 +49,9 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             await reset.ExecuteNonQueryAsync();
         }
 
-        await using (var migration = dataSource.CreateCommand(schema))
+        foreach (var path in migrations)
         {
+            await using var migration = dataSource.CreateCommand(await File.ReadAllTextAsync(path));
             await migration.ExecuteNonQueryAsync();
         }
     }

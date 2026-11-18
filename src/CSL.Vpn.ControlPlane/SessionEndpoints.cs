@@ -13,8 +13,8 @@ public static class SessionEndpoints
 {
     public static void MapSessionEndpoints(this WebApplication app)
     {
-        app.MapPost("/session/heartbeat", HeartbeatAsync);
-        app.MapPost("/session/disconnect", DisconnectAsync);
+        app.MapPost("/session/heartbeat", HeartbeatAsync).RequireRateLimiting("session");
+        app.MapPost("/session/disconnect", DisconnectAsync).RequireRateLimiting("session");
         app.MapGet("/device/status", StatusAsync);
     }
 
