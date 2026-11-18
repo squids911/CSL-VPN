@@ -36,28 +36,16 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         });
     }
 
+    /// <summary>
+    /// Resets the schema. Migrations themselves are applied by the API's
+    /// MigrationRunner when the host starts (first CreateClient), which is
+    /// exactly the path under test.
+    /// </summary>
     public async Task InitializeAsync()
     {
-        var migrations = Directory.GetFiles(AppContext.BaseDirectory, "*.sql")
-            .OrderBy(Path.GetFileName, StringComparer.Ordinal)
-            .ToArray();
-        if (migrations.Length == 0)
-        {
-            throw new InvalidOperationException("No database migrations found in the test output directory.");
-        }
-
         await using var dataSource = NpgsqlDataSource.Create(ConnectionString);
-
-        await using (var reset = dataSource.CreateCommand("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
-        {
-            await reset.ExecuteNonQueryAsync();
-        }
-
-        foreach (var path in migrations)
-        {
-            await using var migration = dataSource.CreateCommand(await File.ReadAllTextAsync(path));
-            await migration.ExecuteNonQueryAsync();
-        }
+        await using var reset = dataSource.CreateCommand("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
+        await reset.ExecuteNonQueryAsync();
     }
 
     async Task IAsyncLifetime.DisposeAsync()

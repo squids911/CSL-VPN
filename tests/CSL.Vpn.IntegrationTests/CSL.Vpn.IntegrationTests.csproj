@@ -19,9 +19,4 @@
   <ItemGroup>
     <ProjectReference Include="../../src/CSL.Vpn.ControlPlane/CSL.Vpn.ControlPlane.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="../../db/migrations/*.sql" LinkBase="">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
 </Project>

@@ -57,6 +57,11 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
+// Apply pending database migrations before serving traffic. Fresh databases
+// get the full chain; pre-migrator databases are baselined (see runner).
+await MigrationRunner.ApplyAsync(
+    app.Services.GetRequiredService<NpgsqlDataSource>(), app.Logger);
+
 app.UseRateLimiter();
 
 static string ClientPartitionKey(HttpContext context)

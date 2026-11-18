@@ -11,4 +11,9 @@
   <ItemGroup>
     <ProjectReference Include="../CSL.Vpn.Shared/CSL.Vpn.Shared.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../db/migrations/*.sql">
+      <LogicalName>CSL.Vpn.db.migrations.%(FileName)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 </Project>
