@@ -38,9 +38,15 @@ credential is forgotten (the agent disconnects on 401).
 
 Known gaps, to close before production traffic claims:
 
-- No source-address enforcement on the tap: a malicious client can use an
-  address other than its assigned one. ebtables/iptables anti-spoofing rules
-  generated from the address pool are the planned mitigation.
+- Anti-spoofing v1 is live (see the deployment runbook): the host drops any
+  packet from the tap whose source IP is not currently reserved in the
+  control-plane pool (ipset `cslvpn-active`, refreshed every 30s), and all
+  IPv6 on the tap. Remaining L2 gap: a client can still ARP-spoof *another
+  assigned* address (no MAC↔IP binding yet).
+- Hairpin: inside the tunnel, the agent still reaches the control plane via
+  the public name (https://v.csl.by), which requires the site router to
+  hairpin NAT its own public address. Validate during the hardware soak; the
+  fallback is a LAN-side address for the API or split-horizon DNS.
 - MTU/framing, reconnect storms, and adapter lifecycle are validated only in
   unit tests; the client tunnel manager still needs a real-hardware soak.
 - Overlapping physical site subnets must not be bridged blindly. Site-aware

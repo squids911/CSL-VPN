@@ -83,6 +83,18 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml exec -T db \
 
 Store backups off-host and test restoration before relying on them.
 
+## Anti-spoofing (applied 2026-11-18)
+
+A VPN client may source traffic only from the address the control plane has
+currently reserved for it. `deploy/sync-antispoof.sh` (on the host,
+`/opt/csl-vpn/deploy/`) maintains the ipset `cslvpn-active` from the database
+and asserts drop rules at the head of FORWARD/INPUT for `tap_tap_csl`; IPv6
+on the tap is dropped outright. systemd: `csl-vpn-antispoof.service`
+(oneshot, after ufw/docker/vpnserver) and `csl-vpn-antispoof-sync.timer`
+(every 30 s). The script takes an flock — concurrent timer/service runs are
+safe. Verified: enrolling a device puts its address into the set, revoking
+removes it.
+
 ## SoftEther data-plane wiring (applied 2026-11-18)
 
 The hub "CSL" authenticates VPN logins against the control plane via RADIUS
