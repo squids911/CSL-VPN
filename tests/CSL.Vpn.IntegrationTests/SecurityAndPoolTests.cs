@@ -11,7 +11,8 @@ namespace CSL.Vpn.IntegrationTests;
 /// The SoftEther SecureNAT gateway occupies 10.255.0.1 inside the client pool
 /// range. Migration 0002 must keep it out of the allocatable pool forever.
 /// </summary>
-public sealed class AddressPoolTests(ApiFixture fixture) : IClassFixture<ApiFixture>
+[Collection(ApiCollection.Name)]
+public sealed class AddressPoolTests(ApiFixture fixture)
 {
     [Fact]
     public async Task Gateway_address_is_not_allocatable()
@@ -56,7 +57,8 @@ public sealed class AddressPoolTests(ApiFixture fixture) : IClassFixture<ApiFixt
 /// the first X-Forwarded-For hop set by the reverse proxy). A fresh partition
 /// key isolates this test from every other test's traffic.
 /// </summary>
-public sealed class RateLimitingTests(ApiFixture fixture) : IClassFixture<ApiFixture>
+[Collection(ApiCollection.Name)]
+public sealed class RateLimitingTests(ApiFixture fixture)
 {
     [Fact]
     public async Task Enroll_is_rate_limited_per_client_ip()

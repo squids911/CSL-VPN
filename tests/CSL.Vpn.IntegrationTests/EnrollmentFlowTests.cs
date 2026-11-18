@@ -11,7 +11,8 @@ namespace CSL.Vpn.IntegrationTests;
 /// Full lifecycle against the real API and a real PostgreSQL:
 /// code issuance, enrollment, single-session heartbeat, revocation, cleanup.
 /// </summary>
-public sealed class EnrollmentFlowTests(ApiFixture fixture) : IClassFixture<ApiFixture>
+[Collection(ApiCollection.Name)]
+public sealed class EnrollmentFlowTests(ApiFixture fixture)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
