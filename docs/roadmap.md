@@ -29,9 +29,9 @@ reconciliation.
 
 ## Workstream 4 — Tests, CI, and operations documentation
 
-Done: shared device-ID tests, token/crypto unit tests, client HTTP tests, API+PostgreSQL integration tests running against a real database in CI, and an Ubuntu deployment runbook.
+Done: shared device-ID tests, token/crypto unit tests, client HTTP tests, API+PostgreSQL integration tests running against a real database in CI, an Ubuntu deployment runbook, the operator admin UI at /admin/ui, and daily database backups with a verified restore path.
 
-Next: backup/restore checks, packaging/signing, load/rate-limit tests, and operator/admin workflows.
+Next: sign the Windows client bundle (release workflow produces an unsigned zip on tags), load/rate-limit tests, and ARP-level (MAC↔IP) anti-spoofing.
 
 ## Explicitly out of scope for this scaffold
 

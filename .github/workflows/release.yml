@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build client bundle
+        shell: pwsh
+        run: ./packaging/Build-Bundle.ps1 -Version ${GITHUB_REF_NAME}
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CSL-VPN-client-${{ github.ref_name }}
+          path: packaging/out/*.zip
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packaging/out/*.zip
+          generate_release_notes: true

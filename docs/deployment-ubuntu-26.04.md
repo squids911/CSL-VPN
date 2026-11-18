@@ -83,6 +83,30 @@ docker compose --env-file deploy/.env -f deploy/compose.yaml exec -T db \
 
 Store backups off-host and test restoration before relying on them.
 
+## Backups (applied 2026-11-18)
+
+`deploy/backup.sh` (host: `/opt/csl-vpn/deploy/`) writes a daily
+custom-format pg_dump to `/var/backups/csl-vpn/` (0700), keeps 14 days,
+maintains `latest.dump`, and refuses to rotate in a dump smaller than 1 KiB.
+systemd: `csl-vpn-backup.service` + `csl-vpn-backup.timer` (03:30 UTC daily).
+
+Restore drill (verified on first install):
+
+```sh
+docker exec deploy-db-1 psql -U cslvpn -d postgres -c "DROP DATABASE IF EXISTS cslvpn_restore_test"
+docker exec deploy-db-1 psql -U cslvpn -d postgres -c "CREATE DATABASE cslvpn_restore_test"
+docker exec -i deploy-db-1 pg_restore -U cslvpn -d cslvpn_restore_test < /var/backups/csl-vpn/latest.dump
+# sanity: row counts match the source
+docker exec deploy-db-1 psql -U cslvpn -d cslvpn_restore_test -tAc \
+  "SELECT (SELECT count(*) FROM devices), (SELECT count(*) FROM address_pool), (SELECT count(*) FROM schema_migrations)"
+docker exec deploy-db-1 psql -U cslvpn -d postgres -c "DROP DATABASE cslvpn_restore_test"
+```
+
+Copy `latest.dump` off-host (rsync/scp to a backup target) — the dump alone
+is sufficient: SoftEther state is static config (backed up as
+`/usr/vpnserver/vpn_server.config.bak-*`), everything else rebuilds from the
+repository.
+
 ## Anti-spoofing (applied 2026-11-18)
 
 A VPN client may source traffic only from the address the control plane has
